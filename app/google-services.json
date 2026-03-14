@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1076032531530",
+    "firebase_url": "https://pokerproject-2368b-default-rtdb.firebaseio.com",
+    "project_id": "pokerproject-2368b",
+    "storage_bucket": "pokerproject-2368b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1076032531530:android:892eef55a2d2e757de0ab3",
+        "android_client_info": {
+          "package_name": "com.example.pokerproject"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1076032531530-40frrfq4pedsdpq7o260cqhidk5ubio9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-J2i5hsyIHlW0BKiD6KunjRHaUWNQFQ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1076032531530-40frrfq4pedsdpq7o260cqhidk5ubio9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

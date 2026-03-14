@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2E7D32"
+    tools:context=".MainActivity"
+    android:id="@+id/main">
+
+    <com.example.pokerproject.PokerGameView
+        android:id="@+id/pokerGameView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/tvPotSize"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:text="Pot: $0"
+        android:textColor="#FFD700"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/layoutActionButtons"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.1" />
+
+    <!-- שורת הכפתורים הרגילה -->
+    <LinearLayout
+        android:id="@+id/layoutActionButtons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <Button
+            android:id="@+id/btnFold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Fold"
+            android:backgroundTint="#D32F2F"
+            android:layout_margin="4dp"/>
+
+        <Button
+            android:id="@+id/btnCheck"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Check"
+            android:backgroundTint="#1976D2"
+            android:layout_margin="4dp"/>
+
+        <Button
+            android:id="@+id/btnRaise"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Raise"
+            android:backgroundTint="#388E3C"
+            android:layout_margin="4dp"/>
+    </LinearLayout>
+
+    <!-- פאנל ההימורים החדש (מוסתר כברירת מחדל) -->
+    <LinearLayout
+        android:id="@+id/layoutBetting"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:gravity="center"
+        android:padding="8dp"
+        android:layout_marginBottom="16dp"
+        android:background="#80000000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- כפתור ביטול -->
+        <Button
+            android:id="@+id/btnCancelBet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#F44336" />
+
+        <!-- אזור הסליידר והטקסט -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvBetAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"/>
+
+            <SeekBar
+                android:id="@+id/sbBetAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="1000"
+                android:progress="100"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnAllIn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="All In!"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#FF9800" />
+
+        <!-- כפתור אישור -->
+        <Button
+            android:id="@+id/btnConfirmBet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Confirm"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#4CAF50" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
