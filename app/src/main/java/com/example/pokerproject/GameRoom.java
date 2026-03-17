@@ -42,7 +42,7 @@ public class GameRoom {
         this.startingChips = 10000;
         this.currentBet = 0;
     }
-    public int getCurrentBet() {
+        public int getCurrentBet() {
         return currentBet;
     }
     public void setCurrentBet(int currentBet) {

@@ -59,33 +59,7 @@ public class GameManager {
         return "Board: " + communityCards.toString();
     }
 
-    public void Fold()
-    {
-        startNewGame();
 
-    }
-
-    public void Check()
-    {
-        if(communityCards.size() == 0)
-        {
-            Flop();
-        }
-        else if(communityCards.size() == 3)
-        {
-            Turn();
-        }
-        else if(communityCards.size() == 4)
-        {
-            River();
-        }
-        else
-        {
-            startNewGame();
-        }
-
-
-    }
 
 
 

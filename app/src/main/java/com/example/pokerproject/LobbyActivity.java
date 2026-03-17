@@ -18,7 +18,7 @@ public class LobbyActivity extends AppCompatActivity implements View.OnClickList
     // הגדרת המשתנים
     Button btnCreate, btnJoin;
     EditText etRoomCode;
-    FirebaseAuth mAuth; // תיקון: זה צריך להיות FirebaseAuth ולא User כאן
+    FirebaseAuth mAuth;
     DatabaseReference mDatabase;
 
     @Override
