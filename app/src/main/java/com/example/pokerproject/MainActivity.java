@@ -24,6 +24,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
 
@@ -36,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     String roomId;
     String myUid;
     LinearLayout layoutActionButtons, layoutBetting;
-    Button btnCancelBet, btnConfirmBet,btnAllIn;
+    Button btnCancelBet, btnConfirmBet, btnAllIn;
     SeekBar sbBetAmount;
     TextView tvBetAmount;
 
@@ -66,10 +68,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         tvBetAmount = findViewById(R.id.tvBetAmount);
         btnAllIn = findViewById(R.id.btnAllIn);
 
-
-
-
-
         btnFold.setOnClickListener(this);
         btnCheck.setOnClickListener(this);
         btnRaise.setOnClickListener(this);
@@ -78,7 +76,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnAllIn.setOnClickListener(this);
 
         sbBetAmount.setOnSeekBarChangeListener(this);
-
 
         // 2. קבלת משתמש נוכחי
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
@@ -120,8 +117,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 boolean isMyTurn = playerTurn.getUid().equals(myUid);
 
                                 boolean amIFolded = false;
-                                for(User p : room.getPlayers()) {
-                                    if(p.getUid().equals(myUid) && p.getStatus().equals("Folded")) {
+                                for (User p : room.getPlayers()) {
+                                    if (p.getUid().equals(myUid) && p.getStatus().equals("Folded")) {
                                         amIFolded = true;
                                         break;
                                     }
@@ -130,8 +127,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 btnCheck.setEnabled(isMyTurn && !amIFolded);
                                 btnFold.setEnabled(isMyTurn && !amIFolded);
                                 btnRaise.setEnabled(isMyTurn && !amIFolded);
+
                                 if (room.getCurrentBet() > 0) {
-                                    btnCheck.setText("Call");
+                                    // בודקים אם ההימור שצריך להשוות גדול או שווה למה שנשאר  לשחקן
+                                    if (room.getCurrentBet() >= playerTurn.getChips()) {
+                                        btnCheck.setText("All In");
+                                    } else {
+                                        btnCheck.setText("Call");
+                                    }
                                 } else {
                                     btnCheck.setText("Check");
                                 }
@@ -152,12 +155,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         if (view.getId() == R.id.btnFold) {
             roomRef.get().addOnCompleteListener(task -> {
-                if(task.isSuccessful() && task.getResult().exists()) {
+                if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
 
-                    if(room != null && room.getPlayers() != null) {
-                        for(User player : room.getPlayers()) {
-                            if(player.getUid().equals(myUid)) {
+                    if (room != null && room.getPlayers() != null) {
+                        for (User player : room.getPlayers()) {
+                            if (player.getUid().equals(myUid)) {
                                 player.setStatus("Folded");
                                 break;
                             }
@@ -171,40 +174,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             }
                         }
 
-                        if(!isRoundComplete) {
-                            // שימוש בפונקציית העזר!
+                        if (!isRoundComplete) {
                             room.setTurnIndex(getNextActivePlayerIndex(room));
                         } else {
-                            // הסיבוב הסתיים: פותחים קלפים
-                            ArrayList<Card> deck = room.getDeck();
-                            ArrayList<Card> communityCards = room.getCommunityCards();
-                            if (communityCards == null) communityCards = new ArrayList<>();
+                            if (room.getGameState().equalsIgnoreCase("River")) {
+                                handleShowdown(room);
+                                Toast.makeText(this, "Showdown Complete!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                // התקדמות רגילה של הסיבוב
+                                ArrayList<Card> deck = room.getDeck();
+                                ArrayList<Card> communityCards = room.getCommunityCards();
+                                if (communityCards == null) communityCards = new ArrayList<>();
 
-                            if (room.getGameState().equalsIgnoreCase("PreFlop")) {
-                                for(int i = 0; i < 3; i++) {
-                                    if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                if (room.getGameState().equalsIgnoreCase("PreFlop")) {
+                                    for (int i = 0; i < 3; i++) {
+                                        if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    }
+                                    room.setGameState("Flop");
+                                } else if (room.getGameState().equalsIgnoreCase("Flop")) {
+                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    room.setGameState("Turn");
+                                } else if (room.getGameState().equalsIgnoreCase("Turn")) {
+                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    room.setGameState("River");
                                 }
-                                room.setGameState("Flop");
-                            } else if (room.getGameState().equalsIgnoreCase("Flop")) {
-                                if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                room.setGameState("Turn");
-                            } else if (room.getGameState().equalsIgnoreCase("Turn")) {
-                                if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                room.setGameState("River");
-                            } else if (room.getGameState().equalsIgnoreCase("River")) {
-                                Toast.makeText(this, "Showdown!", Toast.LENGTH_SHORT).show();
-                            }
-                            room.setCommunityCards(communityCards);
+                                room.setCommunityCards(communityCards);
 
-                            // איפוס שחקנים
-                            for (User player : room.getPlayers()) {
-                                if (!player.getStatus().equals("Folded")) {
-                                    player.setStatus("Waiting");
+                                for (User player : room.getPlayers()) {
+                                    if (!player.getStatus().equals("Folded")) {
+                                        player.setStatus("Waiting");
+                                    }
                                 }
+                                room.setTurnIndex(getFirstActivePlayerIndex(room));
+                                room.setCurrentBet(0);
                             }
-                            // איפוס התור לשחקן הפעיל הראשון (הפונקציה השנייה!)
-                            room.setTurnIndex(getFirstActivePlayerIndex(room));
-                            room.setCurrentBet(0);
                         }
                         roomRef.setValue(room);
                     }
@@ -217,17 +220,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     GameRoom room = task.getResult().getValue(GameRoom.class);
 
                     if (room != null && room.getPlayers() != null) {
-                        // הלולאה המעודכנת בתוך btnCheck
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-
-                                // --- אם מישהו העלה הימור, מורידים צ'יפים מהשחקן ומוסיפים לקופה ---
                                 if (room.getCurrentBet() > 0) {
-                                    player.setChips(player.getChips() - room.getCurrentBet());
-                                    room.setPot(room.getPot() + room.getCurrentBet());
-                                    Toast.makeText(this, "Called " + room.getCurrentBet(), Toast.LENGTH_SHORT).show();
-                                }
+                                    int amountToCall = room.getCurrentBet();
 
+                                    // מקרה הקיצון: אם לשחקן יש פחות צ'יפים מההימור, הוא ישלם רק את מה שנשאר לו
+                                    if (amountToCall >= player.getChips()) {
+                                        amountToCall = player.getChips(); // הוא עושה בעצם Call על כל הקופה שלו
+                                    }
+
+                                    player.setChips(player.getChips() - amountToCall);
+                                    room.setPot(room.getPot() + amountToCall);
+                                    player.setCurrentBet(player.getCurrentBet() + amountToCall);
+
+                                    Toast.makeText(MainActivity.this, "Called " + amountToCall, Toast.LENGTH_SHORT).show();
+                                }
                                 player.setStatus("Checked");
                                 break;
                             }
@@ -242,77 +250,67 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         if (!isRoundComplete) {
-                            // שימוש בפונקציית העזר!
                             room.setTurnIndex(getNextActivePlayerIndex(room));
                         } else {
-                            // הסיבוב הסתיים: פותחים קלפים
-                            ArrayList<Card> deck = room.getDeck();
-                            ArrayList<Card> communityCards = room.getCommunityCards();
-                            if (communityCards == null) communityCards = new ArrayList<>();
+                            if (room.getGameState().equalsIgnoreCase("River")) {
+                                handleShowdown(room);
+                                Toast.makeText(this, "Showdown Complete!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                // התקדמות רגילה של הסיבוב
+                                ArrayList<Card> deck = room.getDeck();
+                                ArrayList<Card> communityCards = room.getCommunityCards();
+                                if (communityCards == null) communityCards = new ArrayList<>();
 
-                            if (room.getGameState().equalsIgnoreCase("PreFlop")) {
-                                for(int i = 0; i < 3; i++) {
-                                    if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                if (room.getGameState().equalsIgnoreCase("PreFlop")) {
+                                    for (int i = 0; i < 3; i++) {
+                                        if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    }
+                                    room.setGameState("Flop");
+                                } else if (room.getGameState().equalsIgnoreCase("Flop")) {
+                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    room.setGameState("Turn");
+                                } else if (room.getGameState().equalsIgnoreCase("Turn")) {
+                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                                    room.setGameState("River");
                                 }
-                                room.setGameState("Flop");
-                            } else if (room.getGameState().equalsIgnoreCase("Flop")) {
-                                if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                room.setGameState("Turn");
-                            } else if (room.getGameState().equalsIgnoreCase("Turn")) {
-                                if(deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                room.setGameState("River");
-                            } else if (room.getGameState().equalsIgnoreCase("River")) {
-                                Toast.makeText(this, "Showdown!", Toast.LENGTH_SHORT).show();
-                            }
-                            room.setCommunityCards(communityCards);
+                                room.setCommunityCards(communityCards);
 
-                            for (User player : room.getPlayers()) {
-                                if (!player.getStatus().equals("Folded")) {
-                                    player.setStatus("Waiting");
+                                for (User player : room.getPlayers()) {
+                                    if (!player.getStatus().equals("Folded")) {
+                                        player.setStatus("Waiting");
+                                    }
                                 }
+                                room.setCurrentBet(0);
+                                room.setTurnIndex(getFirstActivePlayerIndex(room));
                             }
-                            room.setCurrentBet(0);
-                            // איפוס התור לשחקן הפעיל הראשון
-                            room.setTurnIndex(getFirstActivePlayerIndex(room));
                         }
                         roomRef.setValue(room);
                     }
                 }
             });
 
-        }
-        else if (view.getId() == R.id.btnRaise) {
-            // במקום סתם לפתוח את הפאנל, נבדוק קודם כמה כסף יש לשחקן
+        } else if (view.getId() == R.id.btnRaise) {
             roomRef.get().addOnCompleteListener(task -> {
-                if(task.isSuccessful() && task.getResult().exists()) {
+                if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
-
                     if (room != null && room.getPlayers() != null) {
-                        for(User player : room.getPlayers()) {
+                        for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                // 1. מגדירים את המקסימום של הסליידר לפי הצ'יפים של השחקן!
                                 sbBetAmount.setMax(player.getChips());
-
-                                // 2. מאפסים את הסליידר ל-0 כדי שיתחיל מהתחלה
                                 sbBetAmount.setProgress(0);
                                 tvBetAmount.setText("0");
                                 break;
                             }
                         }
-
-                        // 3. עכשיו, כשהסליידר מוכן, נציג את פאנל ההימורים
                         layoutActionButtons.setVisibility(View.GONE);
                         layoutBetting.setVisibility(View.VISIBLE);
                     }
                 }
             });
-        }
-        else if(view.getId()==R.id.btnCancelBet) {
+        } else if (view.getId() == R.id.btnCancelBet) {
             layoutActionButtons.setVisibility(View.VISIBLE);
             layoutBetting.setVisibility(View.GONE);
-        }
-        else if(view.getId()==R.id.btnConfirmBet)
-        {
+        } else if (view.getId() == R.id.btnConfirmBet) {
             int finalBetAmount = sbBetAmount.getProgress();
 
             if (finalBetAmount <= 0) {
@@ -321,23 +319,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             roomRef.get().addOnCompleteListener(task -> {
-                if(task.isSuccessful() && task.getResult().exists()) {
+                if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
 
                     if (room != null && room.getPlayers() != null) {
-                        for(User player : room.getPlayers()) {
+                        for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
                                 room.setCurrentBet(finalBetAmount);
                                 room.setPot(room.getPot() + finalBetAmount);
                                 player.setChips(player.getChips() - finalBetAmount);
+                                // עדכון כמות ההשקעה של השחקן ביד:
+                                player.setCurrentBet(player.getCurrentBet() + finalBetAmount);
                                 player.setStatus("Checked");
-                            }
-                            else if (!player.getStatus().equals("Folded")) {
+                            } else if (!player.getStatus().equals("Folded")) {
                                 player.setStatus("Waiting");
                             }
                         }
 
-                        // העברת תור לשחקן הבא באמצעות פונקציית העזר!
                         room.setTurnIndex(getNextActivePlayerIndex(room));
                         roomRef.setValue(room);
 
@@ -346,21 +344,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
             });
-        }else if (view.getId() == R.id.btnAllIn) {
-
+        } else if (view.getId() == R.id.btnAllIn) {
             roomRef.get().addOnCompleteListener(task -> {
-                if(task.isSuccessful() && task.getResult().exists()) {
+                if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
 
                     if (room != null && room.getPlayers() != null) {
-                        for(User player : room.getPlayers()) {
+                        for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-
                                 int allInAmount = player.getChips();
 
-                                room.setCurrentBet(allInAmount);
+                                if (allInAmount > room.getCurrentBet()) {
+                                    room.setCurrentBet(allInAmount);
+                                }
+
                                 room.setPot(room.getPot() + allInAmount);
                                 player.setChips(0);
+                                // עדכון כמות ההשקעה של השחקן ביד:
+                                player.setCurrentBet(player.getCurrentBet() + allInAmount);
                                 player.setStatus("Checked");
 
                             } else if (!player.getStatus().equals("Folded")) {
@@ -377,12 +378,111 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             });
         }
-
-
-
-
     }
-    // פונקציית עזר: מוצאת את השחקן הבא בתור שלא פרש
+
+    // --- אלגוריתם ה-Showdown והקופות הצדדיות (באמצעות HashMap) ---
+    private void handleShowdown(GameRoom room) {
+        if (room.getPlayers() == null) return;
+
+        // 1. יצירת מילון ציונים - ישמור את הציון של כל שחקן לפי ה-UID שלו
+        HashMap<String, Integer> playerScores = new HashMap<>();
+
+        for (User u : room.getPlayers()) {
+            if (!u.getStatus().equals("Folded")) {
+                ArrayList<Card> sevenCards = new ArrayList<>();
+                if (u.getHand() != null) sevenCards.addAll(u.getHand());
+                if (room.getCommunityCards() != null) sevenCards.addAll(room.getCommunityCards());
+
+                int score = HandEvaluator.evaluateHand(sevenCards);
+                playerScores.put(u.getUid(), score);
+            } else {
+                playerScores.put(u.getUid(), 0);
+            }
+        }
+
+        // 2. יצירת רשימה של השחקנים ומיון שלה לפי סכום ההשקעה (currentBet)
+        ArrayList<User> sortedPlayers = new ArrayList<>(room.getPlayers());
+        Collections.sort(sortedPlayers, (u1, u2) -> u1.getCurrentBet() - u2.getCurrentBet());
+
+        int previousInvested = 0;
+
+        // 3. בניית שכבות הקופה (Side Pots) וחלוקת הכסף
+        for (int i = 0; i < sortedPlayers.size(); i++) {
+            User current = sortedPlayers.get(i);
+            int currentInvested = current.getCurrentBet();
+            int layerAmount = currentInvested - previousInvested;
+
+            if (layerAmount > 0) {
+                int layerPot = 0;
+                ArrayList<User> eligiblePlayers = new ArrayList<>();
+
+                for (int j = i; j < sortedPlayers.size(); j++) {
+                    layerPot += layerAmount;
+                    if (!sortedPlayers.get(j).getStatus().equals("Folded")) {
+                        eligiblePlayers.add(sortedPlayers.get(j));
+                    }
+                }
+
+                if (!eligiblePlayers.isEmpty() && layerPot > 0) {
+                    int bestScore = 0;
+
+                    for (User p : eligiblePlayers) {
+                        int pScore = playerScores.get(p.getUid());
+                        if (pScore > bestScore) bestScore = pScore;
+                    }
+
+                    ArrayList<User> winners = new ArrayList<>();
+                    for (User p : eligiblePlayers) {
+                        if (playerScores.get(p.getUid()) == bestScore) {
+                            winners.add(p);
+                        }
+                    }
+
+                    int splitAmount = layerPot / winners.size();
+                    for (User w : winners) {
+                        // מעדכנים את הכסף של המנצח ישירות ברשימה המקורית
+                        w.setChips(w.getChips() + splitAmount);
+                    }
+                }
+                previousInvested = currentInvested;
+            }
+        }
+
+        // --- 4. איפוס החדר והכנה לסיבוב הבא ---
+        room.setPot(0);
+        room.setCurrentBet(0);
+        room.setGameState("PreFlop");
+        if (room.getCommunityCards() != null) {
+            room.getCommunityCards().clear();
+        }
+
+        for (User player : room.getPlayers()) {
+            player.setStatus("Waiting");
+            player.setCurrentBet(0); // איפוס מונה ההשקעות של השחקן לסיבוב הבא
+            player.setHand(new ArrayList<>());
+        }
+
+        // חלוקת קלפים חדשים לכולם
+        Deck newDeck = new Deck();
+        newDeck.shuffle();
+        ArrayList<Card> deckList = new ArrayList<>();
+        while (true) {
+            Card c = newDeck.drawCard();
+            if (c == null) break;
+            deckList.add(c);
+        }
+        room.setDeck(deckList);
+
+        for (User player : room.getPlayers()) {
+            ArrayList<Card> newHand = new ArrayList<>();
+            newHand.add(deckList.remove(0));
+            newHand.add(deckList.remove(0));
+            player.setHand(newHand);
+        }
+
+        room.setTurnIndex(getFirstActivePlayerIndex(room));
+    }
+
     private int getNextActivePlayerIndex(GameRoom room) {
         int nextIndex = room.getTurnIndex() + 1;
         if (nextIndex >= room.getPlayers().size()) {
@@ -397,7 +497,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return nextIndex;
     }
 
-    // פונקציית עזר: מוצאת את השחקן הראשון שלא פרש (בשביל תחילת סיבוב חדש)
     private int getFirstActivePlayerIndex(GameRoom room) {
         int firstPlayer = 0;
         while (firstPlayer < room.getPlayers().size() && room.getPlayers().get(firstPlayer).getStatus().equals("Folded")) {
@@ -413,12 +512,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
-
-    }
+    public void onStartTrackingTouch(SeekBar seekBar) {}
 
     @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-
-    }
+    public void onStopTrackingTouch(SeekBar seekBar) {}
 }
