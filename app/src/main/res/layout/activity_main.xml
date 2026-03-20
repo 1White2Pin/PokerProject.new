@@ -2,42 +2,55 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"> <com.example.pokerproject.PokerGameView
-    android:id="@+id/pokerGameView"
-    android:layout_width="0dp"
-    android:layout_height="0dp"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent" />
+    android:background="#060D06">
+
+    <com.example.pokerproject.PokerGameView
+        android:id="@+id/pokerGameView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
     <LinearLayout
+        android:id="@+id/potContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#80000000"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="8dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/bg_pot_pill"
+        android:paddingHorizontal="28dp"
+        android:paddingVertical="7dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MAIN POT"
+            android:textColor="#88C8A84B"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.3"/>
 
         <TextView
             android:id="@+id/tvPotSize"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Pot: 0"
-            android:textColor="#FFD700"
-            android:textSize="22sp"
+            android:textColor="#C8A84B"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:shadowColor="#000000"
-            android:shadowDx="2"
+            android:shadowColor="#FF000000"
+            android:shadowDx="0"
             android:shadowDy="2"
-            android:shadowRadius="3" />
+            android:shadowRadius="8"/>
     </LinearLayout>
 
     <LinearLayout
@@ -45,43 +58,56 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:background="@drawable/bg_action_panel"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingHorizontal="12dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"> <Button
+        android:id="@+id/btnFold"
+        android:layout_width="90dp"
+        android:layout_height="54dp"
+        android:layout_marginHorizontal="5dp"
+        android:text="FOLD"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#FFCDD2"
+        android:letterSpacing="0.08"
+        android:background="@drawable/btn_fold_bg"
+        android:stateListAnimator="@null"
+        android:elevation="6dp"/>
 
         <Button
-            android:id="@+id/btnFold"
+            android:id="@+id/btnCheck"
             android:layout_width="100dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="12dp"
-            android:backgroundTint="#D32F2F"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:layout_height="54dp"
+            android:layout_marginHorizontal="5dp"
+            android:text="Check"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:text="Fold"
-            app:cornerRadius="12dp" /> <Button
-        android:id="@+id/btnCheck"
-        android:layout_width="100dp"
-        android:layout_height="55dp"
-        android:layout_marginEnd="12dp"
-        android:backgroundTint="#1976D2"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:text="Check"
-        app:cornerRadius="12dp" />
+            android:textColor="#BBDEFB"
+            android:letterSpacing="0.06"
+            android:background="@drawable/btn_call_bg"
+            android:stateListAnimator="@null"
+            android:elevation="6dp"/>
 
         <Button
             android:id="@+id/btnRaise"
-            android:layout_width="100dp"
-            android:layout_height="55dp"
-            android:backgroundTint="#F57C00"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:layout_width="90dp"
+            android:layout_height="54dp"
+            android:layout_marginHorizontal="5dp"
+            android:text="RAISE"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:text="Raise"
-            app:cornerRadius="12dp" />
+            android:textColor="#FFF8E1"
+            android:letterSpacing="0.08"
+            android:background="@drawable/btn_raise_bg"
+            android:stateListAnimator="@null"
+            android:elevation="6dp"/>
+
     </LinearLayout>
 
     <LinearLayout
@@ -89,37 +115,52 @@
         android:layout_width="320dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#E6121212"
-        android:padding="16dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_betting_panel"
+        android:paddingTop="16dp"
+        android:paddingBottom="14dp"
+        android:paddingHorizontal="18dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.9"> <LinearLayout
+        app:layout_constraintEnd_toEndOf="parent"> <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="12dp">
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RAISE TO"
+            android:textColor="#88C8A84B"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.2"/>
+
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Bet: "
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="#AAFFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/tvBetAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0"
-            android:textColor="#FFB300"
+            android:textColor="#C8A84B"
             android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:shadowColor="#FF000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="6"/>
     </LinearLayout>
 
         <SeekBar
@@ -127,8 +168,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:progressTint="#FFB300"
-            android:thumbTint="#FFB300" />
+            android:progressTint="#C8A84B"
+            android:thumbTint="#E8CC7A"/>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -138,37 +179,41 @@
             <Button
                 android:id="@+id/btnCancelBet"
                 android:layout_width="0dp"
-                android:layout_height="50dp"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:backgroundTint="#546E7A"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
+                android:layout_marginEnd="6dp"
                 android:text="Cancel"
-                app:cornerRadius="8dp" />
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#CFD8DC"
+                android:background="@drawable/btn_cancel_bg"
+                android:stateListAnimator="@null"/>
 
             <Button
                 android:id="@+id/btnAllIn"
                 android:layout_width="0dp"
-                android:layout_height="50dp"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:backgroundTint="#8E24AA"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
+                android:layout_marginEnd="6dp"
                 android:text="All In"
-                app:cornerRadius="8dp" />
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#E1BEE7"
+                android:background="@drawable/btn_allin_bg"
+                android:stateListAnimator="@null"/>
 
             <Button
                 android:id="@+id/btnConfirmBet"
                 android:layout_width="0dp"
-                android:layout_height="50dp"
-                android:layout_weight="1"
-                android:backgroundTint="#43A047"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
+                android:layout_height="48dp"
+                android:layout_weight="1.2"
                 android:text="Confirm"
-                app:cornerRadius="8dp" />
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#C8E6C9"
+                android:background="@drawable/btn_confirm_bg"
+                android:stateListAnimator="@null"/>
+
         </LinearLayout>
     </LinearLayout>
 

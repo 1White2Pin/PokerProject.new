@@ -1,5 +1,8 @@
 package com.example.pokerproject;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -11,6 +14,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 
 import androidx.annotation.NonNull;
 
@@ -18,20 +22,30 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class PokerGameView extends View {
+
     private GameRoom currentRoom;
     private String uid;
 
-    private Paint paint;
-    private Paint bgPaint;
-    private Paint boardPaint;
-    private Paint podPaint;
+    private Paint tablePaint;
+    private Paint borderPaint;
+    private Paint cardPaint;
+    private Paint textBgPaint;
+    private Paint textPaint;
 
     private int screenW, screenH;
     private int cardW, cardH;
     private int smallCardW, smallCardH;
+    private RectF tableRect;
 
     private HashMap<String, Bitmap> cardCache;
     private Bitmap smallBackBitmap;
+    private Bitmap normalBackBitmap; // נוסף: גב קלף בגודל רגיל בשביל האנימציה
+
+    // --- משתני אנימציית ההיפוך (Flip Animation) ---
+    private boolean isFlipping = false;
+    private float flipScale = 1f; // נע בין 1 (גב) למינוס 1 (פנים)
+    private int previousCommunityCount = 0; // זוכר כמה קלפים היו כדי לדעת את מי לסובב
+    private int animatingStartIndex = 0; // מאיזה אינדקס להתחיל את האנימציה
 
     public PokerGameView(Context context) {
         super(context);
@@ -44,21 +58,24 @@ public class PokerGameView extends View {
     }
 
     public void init() {
-        paint = new Paint();
-        paint.setAntiAlias(true);
-
         cardCache = new HashMap<>();
 
-        // רקע השולחן - יתמלא ב-Radial Gradient
-        bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        tablePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        // הלוח השקוף שעליו יונחו קלפי הקהילה
-        boardPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        boardPaint.setColor(Color.parseColor("#66000000")); // שחור עם 40% שקיפות
+        borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borderPaint.setColor(Color.parseColor("#5C3A21"));
+        borderPaint.setStyle(Paint.Style.STROKE);
+        borderPaint.setStrokeWidth(30f);
 
-        // "תגיות" השחקנים שעליהן יונחו הקלפים שלהם
-        podPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        podPaint.setColor(Color.parseColor("#4D000000")); // שחור עם 30% שקיפות
+        cardPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        textBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textBgPaint.setColor(Color.parseColor("#99000000"));
+
+        textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setColor(Color.WHITE);
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(35f);
     }
 
     @Override
@@ -67,27 +84,28 @@ public class PokerGameView extends View {
         screenW = w;
         screenH = h;
 
-        // מידות הקלפים
         cardH = (int)(screenH * 0.32);
         cardW = (int)(cardH * 0.72);
-
         smallCardH = (int)(cardH * 0.70);
         smallCardW = (int)(smallCardH * 0.72);
 
-        // אפקט זרקור עדין ועשיר על כל המסך (קזינו מודרני)
+        tableRect = new RectF(50, 50, screenW - 50, screenH - 50);
+
         RadialGradient gradient = new RadialGradient(
                 screenW / 2f, screenH / 2f,
-                screenW * 0.8f,
-                Color.parseColor("#1B4F3B"), // ירוק-כחלחל עשיר במרכז
-                Color.parseColor("#0A1C15"), // שחור-ירוק עמוק בקצוות
+                screenW / 1.5f,
+                Color.parseColor("#2E7D32"),
+                Color.parseColor("#124015"),
                 Shader.TileMode.CLAMP
         );
-        bgPaint.setShader(gradient);
+        tablePaint.setShader(gradient);
 
+        // טעינת גב הקלף (מוקטן ליריבים ורגיל לאנימציה באמצע)
         int backResId = getResources().getIdentifier("card_back", "drawable", getContext().getPackageName());
         if (backResId != 0) {
             Bitmap originalBack = BitmapFactory.decodeResource(getResources(), backResId);
             smallBackBitmap = Bitmap.createScaledBitmap(originalBack, smallCardW, smallCardH, true);
+            normalBackBitmap = Bitmap.createScaledBitmap(originalBack, cardW, cardH, true);
         }
     }
 
@@ -95,43 +113,67 @@ public class PokerGameView extends View {
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
 
-        // 1. ציור הרקע (תופס את כל המסך)
-        canvas.drawRect(0, 0, screenW, screenH, bgPaint);
+        canvas.drawColor(Color.BLACK);
+
+        if (tableRect != null) {
+            canvas.drawOval(tableRect, tablePaint);
+            canvas.drawOval(tableRect, borderPaint);
+        }
 
         if (currentRoom == null) return;
 
         // ---------------------------------------------------------
-        // ציור קלפי הקהילה על "לוח זכוכית"
+        // 3. קלפי הקהילה + אנימציית ההיפוך!
         // ---------------------------------------------------------
         if (currentRoom.getCommunityCards() != null && !currentRoom.getCommunityCards().isEmpty()) {
             ArrayList<Card> communityCards = currentRoom.getCommunityCards();
-
-            int space = 12; // רווח בין קלפי הקהילה
+            int space = 15;
             int totalWidth = communityCards.size() * cardW + (communityCards.size() - 1) * space;
             float startX = (screenW - totalWidth) / 2f;
-            float startY = (screenH - cardH) / 2f - 40;
+            float startY = (screenH - cardH) / 2f - 30;
 
-            // ציור הרקע הכהה מאחורי הקלפים (The Board)
-            RectF boardRect = new RectF(startX - 20, startY - 20, startX + totalWidth + 20, startY + cardH + 20);
-            canvas.drawRoundRect(boardRect, 30, 30, boardPaint);
+            for (int i = 0; i < communityCards.size(); i++) {
+                Card card = communityCards.get(i);
+                Bitmap frontBitmap = getCachedImage(card.getImageResourceName(), cardW, cardH);
 
-            // ציור הקלפים עצמם
-            float currentX = startX;
-            for (Card card : communityCards) {
-                Bitmap bitmap = getCachedImage(card.getImageResourceName(), cardW, cardH);
-                if (bitmap != null) {
-                    canvas.drawBitmap(bitmap, currentX, startY, paint);
+                // האם הקלף הזה נמצא עכשיו באנימציה?
+                if (isFlipping && i >= animatingStartIndex) {
+                    canvas.save(); // שומרים את מצב המסך כדי לא לסובב את כל השולחן בטעות
+
+                    // מחשבים את מרכז הקלף שעליו הוא יסתובב
+                    float centerX = startX + cardW / 2f;
+                    float centerY = startY + cardH / 2f;
+
+                    // מכווצים את הקלף ב-X לפי מצב האנימציה (ערך מוחלט כדי שיהיה חיובי תמיד)
+                    float currentScaleX = Math.abs(flipScale);
+                    canvas.scale(currentScaleX, 1f, centerX, centerY);
+
+                    if (flipScale > 0) {
+                        // חלק ראשון של האנימציה (מ-1 עד 0): מציירים את גב הקלף!
+                        if (normalBackBitmap != null) {
+                            canvas.drawBitmap(normalBackBitmap, startX, startY, cardPaint);
+                        }
+                    } else {
+                        // חלק שני של האנימציה (מ-0 עד מינוס 1): מציירים את הקלף האמיתי!
+                        if (frontBitmap != null) {
+                            canvas.drawBitmap(frontBitmap, startX, startY, cardPaint);
+                        }
+                    }
+                    canvas.restore(); // מחזירים את המסך למצב רגיל לקלף הבא
+                } else {
+                    // קלף שכבר פתוח (לא באנימציה) מצויר רגיל
+                    if (frontBitmap != null) {
+                        canvas.drawBitmap(frontBitmap, startX, startY, cardPaint);
+                    }
                 }
-                currentX += cardW + space;
+
+                startX += cardW + space;
             }
         }
 
-        // ---------------------------------------------------------
-        // מציאת השחקנים
-        // ---------------------------------------------------------
+        // --- שאר הציור כרגיל ---
         User me = null;
         ArrayList<User> opponents = new ArrayList<>();
-
         if (currentRoom.getPlayers() != null) {
             for (User player : currentRoom.getPlayers()) {
                 if (player.getUid() != null && player.getUid().equals(uid)) {
@@ -142,81 +184,72 @@ public class PokerGameView extends View {
             }
         }
 
-        // ---------------------------------------------------------
-        // ציור הקלפים שלך (בחפיפה - Overlapping)
-        // ---------------------------------------------------------
         if (me != null && me.getHand() != null && !me.getHand().isEmpty()) {
-            if ("Folded".equals(me.getStatus())) paint.setAlpha(100);
-            else paint.setAlpha(255);
+            if ("Folded".equals(me.getStatus())) cardPaint.setAlpha(100);
+            else cardPaint.setAlpha(255);
 
             int myHandSize = me.getHand().size();
-            // שינוי הגישה: הקלפים חופפים! המרחק ביניהם הוא רק חצי מהרוחב של קלף
-            float overlapOffset = cardW * 0.5f;
-            float totalWidthMyHand = cardW + (myHandSize - 1) * overlapOffset;
-
-            float myX = (screenW - totalWidthMyHand) / 2f;
-            float myY = screenH - cardH - 10;
+            float overlap = cardW * 0.5f;
+            float totalWidth = cardW + (myHandSize - 1) * overlap;
+            float myX = (screenW - totalWidth) / 2f;
+            float myY = screenH - cardH - 20;
 
             for (Card card : me.getHand()) {
                 Bitmap bitmap = getCachedImage(card.getImageResourceName(), cardW, cardH);
-                if (bitmap != null) canvas.drawBitmap(bitmap, myX, myY, paint);
-                myX += overlapOffset; // מתקדמים רק חצי קלף, ליצירת חפיפה
+                if (bitmap != null) canvas.drawBitmap(bitmap, myX, myY, cardPaint);
+                myX += overlap;
             }
-            paint.setAlpha(255);
+            cardPaint.setAlpha(255);
+            drawPlayerLabel(canvas, me.getNickname(), me.getChips(), screenW / 2f, myY - 10);
         }
 
-        // ---------------------------------------------------------
-        // ציור היריבים (קצת יותר קרוב לפינות, ועל תגית שחורה)
-        // ---------------------------------------------------------
         if (!opponents.isEmpty() && smallBackBitmap != null) {
             for (int i = 0; i < opponents.size(); i++) {
                 User opponent = opponents.get(i);
-
                 if (opponent.getHand() == null || opponent.getHand().isEmpty()) continue;
 
-                if ("Folded".equals(opponent.getStatus())) paint.setAlpha(100);
-                else paint.setAlpha(255);
+                if ("Folded".equals(opponent.getStatus())) cardPaint.setAlpha(100);
+                else cardPaint.setAlpha(255);
 
                 int handSize = opponent.getHand().size();
-                float overlapOffset = smallCardW * 0.4f; // חפיפה צפופה יותר ליריבים
-                float totalW = smallCardW + (handSize - 1) * overlapOffset;
+                float overlap = smallCardW * 0.4f;
+                float totalW = smallCardW + (handSize - 1) * overlap;
+                float oppX = 0, oppY = 0;
 
-                float oppX = 0;
-                float oppY = 0;
-
-                // מיקומים נקיים באזורים מתים של המסך
                 if (i == 0) {
                     oppX = 60;
-                    oppY = screenH * 0.25f;
+                    oppY = (screenH - smallCardH) / 2f - 30;
                 } else if (i == 1) {
                     oppX = (screenW - totalW) / 2f;
                     oppY = 40;
                 } else if (i == 2) {
                     oppX = screenW - totalW - 60;
-                    oppY = screenH * 0.25f;
+                    oppY = (screenH - smallCardH) / 2f - 30;
                 }
 
-                // ציור ה"צלחת/תגית" מתחת לקלפי היריב
-                RectF podRect = new RectF(oppX - 15, oppY - 15, oppX + totalW + 15, oppY + smallCardH + 15);
-                canvas.drawRoundRect(podRect, 25, 25, podPaint);
-
-                // ציור הקלפים של היריב
+                float currentX = oppX;
                 for (int k = 0; k < handSize; k++) {
-                    canvas.drawBitmap(smallBackBitmap, oppX, oppY, paint);
-                    oppX += overlapOffset;
+                    canvas.drawBitmap(smallBackBitmap, currentX, oppY, cardPaint);
+                    currentX += overlap;
                 }
-                paint.setAlpha(255);
+                cardPaint.setAlpha(255);
+                drawPlayerLabel(canvas, opponent.getNickname(), opponent.getChips(), oppX + totalW / 2f, oppY + smallCardH + 40);
             }
         }
     }
 
+    private void drawPlayerLabel(Canvas canvas, String name, int chips, float centerX, float bottomY) {
+        String text = (name != null ? name : "Player") + " | ₪" + chips;
+        RectF bgRect = new RectF(centerX - 120, bottomY - 45, centerX + 120, bottomY + 15);
+        canvas.drawRoundRect(bgRect, 15, 15, textBgPaint);
+        canvas.drawText(text, centerX, bottomY, textPaint);
+    }
+
     private Bitmap getCachedImage(String cardName, int reqWidth, int reqHeight) {
         String key = cardName + "_" + reqWidth;
-
         if (cardCache.containsKey(key)) {
             return cardCache.get(key);
         }
-
         int resID = getResources().getIdentifier(cardName, "drawable", getContext().getPackageName());
         if (resID != 0) {
             Bitmap originalBitmap = BitmapFactory.decodeResource(getResources(), resID);
@@ -224,13 +257,59 @@ public class PokerGameView extends View {
             cardCache.put(key, scaledBitmap);
             return scaledBitmap;
         }
-
         return null;
     }
 
+    // --- מערכת עדכון המשחק החדשה שתופסת מתי צריך לעשות אנימציה ---
     public void updateGame(GameRoom room, String uid) {
         this.currentRoom = room;
         this.uid = uid;
-        invalidate();
+
+        int currentCommunityCount = (room.getCommunityCards() != null) ? room.getCommunityCards().size() : 0;
+
+        // אם יש קלפים חדשים על השולחן (למשל, עברנו ל-Flop)
+        if (currentCommunityCount > previousCommunityCount) {
+            animatingStartIndex = previousCommunityCount; // נסובב רק את הקלפים החדשים
+            startFlipAnimation();
+        }
+        // אם המשחק התאפס (הקופה התחלקו והתחיל סיבוב חדש)
+        else if (currentCommunityCount == 0) {
+            previousCommunityCount = 0;
+            invalidate();
+        } else {
+            invalidate(); // סתם עדכון רגיל בלי אנימציה
+        }
+
+        previousCommunityCount = currentCommunityCount;
+    }
+
+    // --- הפונקציה שמפעילה את הקסם של האנימציה ---
+    private void startFlipAnimation() {
+        if (isFlipping) return;
+        isFlipping = true;
+
+        // אנימציה שיורדת מ-1 (גב הקלף מלא) למינוס 1 (פני הקלף מלאים)
+        ValueAnimator animator = ValueAnimator.ofFloat(1f, -1f);
+        animator.setDuration(600); // 600 מילישניות (חצי שניה בערך)
+        animator.setInterpolator(new AccelerateDecelerateInterpolator()); // מתחיל לאט, מאיץ, ומאט בסוף
+
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                flipScale = (float) animation.getAnimatedValue();
+                invalidate(); // אומר ל-Canvas לצייר מחדש כל פריים!
+            }
+        });
+
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                isFlipping = false;
+                flipScale = -1f; // מוודא שבסוף רואים את הקלף פתוח לחלוטין
+                invalidate();
+            }
+        });
+
+        animator.start();
     }
 }
