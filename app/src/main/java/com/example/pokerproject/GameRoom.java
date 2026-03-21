@@ -13,6 +13,24 @@ public class GameRoom {
     private ArrayList<Card> deck;
     private String gameState;
     private int currentBet;
+    private String winnerName = "";
+    private int dealerIndex=0;
+
+    public int getDealerIndex() {
+        return dealerIndex;
+    }
+    public void setDealerIndex(int dealerIndex) {
+        this.dealerIndex = dealerIndex;
+    }
+
+
+    public String getWinnerName() {
+        return winnerName;
+    }
+
+    public void setWinnerName(String winnerName) {
+        this.winnerName = winnerName;
+    }
 
 
     public GameRoom()
