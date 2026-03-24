@@ -15,6 +15,7 @@ public class GameRoom {
     private int currentBet;
     private String winnerName = "";
     private int dealerIndex=0;
+    private boolean isPrivate = false;
 
     public int getDealerIndex() {
         return dealerIndex;
@@ -47,7 +48,7 @@ public class GameRoom {
 
     }
 
-    public GameRoom(String roomID, String hostId)
+    public GameRoom(String roomID, String hostId, boolean isPrivate)
     {
         this.roomID = roomID;
         this.hostId = hostId;
@@ -57,8 +58,10 @@ public class GameRoom {
         this.communityCards = new ArrayList<>();
         this.turnIndex = 0;
         this.isGameActive = false;
-        this.startingChips = 10000;
+        this.startingChips = 500;
         this.currentBet = 0;
+        this.isPrivate = isPrivate;
+
     }
         public int getCurrentBet() {
         return currentBet;
@@ -138,6 +141,8 @@ public class GameRoom {
     public void setGameState(String gameState) {
         this.gameState = gameState;
     }
+    public boolean isPrivate() { return isPrivate; }
+    public void setPrivate(boolean isPrivate) { this.isPrivate = isPrivate; }
 
 
 

@@ -13,6 +13,7 @@ public class User {
     private int currentBet;  // כמה הימר בסיבוב הנוכחי
     private String status;   // Active, Folded, Check, Waiting
     private ArrayList<Card> hand;
+    private int chipsBeforeRound;
 
     public User() {
     }
@@ -29,8 +30,26 @@ public class User {
         this.currentBet = 0;
         this.status = "Waiting";
     }
+    // בנאי מקוצר שנוח להשתמש בו כשנכנסים לחדר משחק
+    public User(String uid, String nickname, int chips) {
+        this.uid = uid;
+        this.nickname = nickname;
+        this.chips = chips;
+
+        // שמים ערכים ריקים לשאר הדברים כדי שלא יהיה null
+        this.email = "";
+        this.age = "";
+        this.imageURL = "";
+
+        // אתחול ברירת מחדל למשחק
+        this.currentBet = 0;
+        this.status = "Waiting";
+    }
 
     // --- Getters & Setters ---
+
+    public void setChipsBeforeRound(int chipsBeforeRound) { this.chipsBeforeRound = chipsBeforeRound; }
+    public int getChipsBeforeRound() { return chipsBeforeRound; }
 
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }

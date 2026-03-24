@@ -2,6 +2,7 @@ package com.example.pokerproject;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -105,38 +106,45 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (snapshot.exists()) {
                     GameRoom room = snapshot.getValue(GameRoom.class);
 
-                    if (room != null) {
+                    // הוספנו פה גם בדיקה שהשחקנים לא ריקים כדי למנוע קריסות
+                    if (room != null && room.getPlayers() != null) {
                         tvPotSize.setText("Pot: " + room.getPot());
-                        pokerGameView.updateGame(room, myUid);
-                        // בודק שיש לפחות 2 שחקנים, ושחבילת הקלפים ריקה או לא קיימת, ושאני המארח
-                        if (room.getPlayers().size() >= 2 && (room.getDeck() == null || room.getDeck().isEmpty()) && myUid.equals(room.getPlayers().get(0).getUid())) {
-                            resetRoomForNextRound(room);
-                            roomRef.setValue(room);
-                            return;
+
+                        // 🌟 התיקון הקריטי: אם עדיין אין קלפים, לא מציירים כלום!
+                        if (room.getDeck() == null || room.getDeck().isEmpty()) {
+                            // רק המארח "הדילר" מאפס את החדר ומחלק קלפים
+                            if (room.getPlayers().size() >= 2 && myUid.equals(room.getPlayers().get(0).getUid())) {
+                                resetRoomForNextRound(room);
+                                roomRef.setValue(room);
+                            }
+                            return; // כולם (גם המארח וגם האורח) עוצרים פה! לא עוברים לציור הקנבס.
                         }
 
+                        // רק אחרי שהחבילה קיימת בשרת, מציירים את השולחן בבטחה:
+                        pokerGameView.updateGame(room, myUid);
+
                         // ניהול תורות (הדלקה/כיבוי כפתורים)
-                        if (room.getPlayers() != null && !room.getPlayers().isEmpty()) {
+                        if (!room.getPlayers().isEmpty()) {
                             int currentTurnIndex = room.getTurnIndex();
 
                             if (currentTurnIndex >= 0 && currentTurnIndex < room.getPlayers().size()) {
                                 User playerTurn = room.getPlayers().get(currentTurnIndex);
                                 boolean isMyTurn = playerTurn.getUid().equals(myUid);
 
-                                boolean amIFolded = false;
+                                boolean amIFoldedOrOut = false;
                                 for (User p : room.getPlayers()) {
-                                    if (p.getUid().equals(myUid) && p.getStatus().equals("Folded")) {
-                                        amIFolded = true;
+                                    if (p.getUid().equals(myUid) && (p.getStatus().equals("Folded") || p.getStatus().equals("Out"))) {
+                                        amIFoldedOrOut = true;
                                         break;
                                     }
                                 }
 
-                                btnCheck.setEnabled(isMyTurn && !amIFolded);
-                                btnFold.setEnabled(isMyTurn && !amIFolded);
-                                btnRaise.setEnabled(isMyTurn && !amIFolded);
+                                btnCheck.setEnabled(isMyTurn && !amIFoldedOrOut);
+                                btnFold.setEnabled(isMyTurn && !amIFoldedOrOut);
+                                btnRaise.setEnabled(isMyTurn && !amIFoldedOrOut);
 
                                 if (room.getCurrentBet() > 0) {
-                                    if (room.getCurrentBet() >= playerTurn.getChips()) {
+                                    if (room.getCurrentBet() >= playerTurn.getChips() + playerTurn.getCurrentBet()) {
                                         btnCheck.setText("All In");
                                     } else {
                                         btnCheck.setText("Call");
@@ -163,7 +171,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
-
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
@@ -171,52 +178,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 break;
                             }
                         }
-
-                        boolean isRoundComplete = true;
-                        for (User player : room.getPlayers()) {
-                            if (!player.getStatus().equals("Checked") && !player.getStatus().equals("Folded")) {
-                                isRoundComplete = false;
-                                break;
-                            }
-                        }
-
-                        if (!isRoundComplete) {
-                            room.setTurnIndex(getNextActivePlayerIndex(room));
-                        } else {
-                            if (room.getGameState().equalsIgnoreCase("River")) {
-                                handleShowdown(room);
-                            } else {
-                                ArrayList<Card> deck = room.getDeck();
-                                ArrayList<Card> communityCards = room.getCommunityCards();
-                                if (communityCards == null) communityCards = new ArrayList<>();
-
-                                if (room.getGameState().equalsIgnoreCase("PreFlop")) {
-                                    for (int i = 0; i < 3; i++) {
-                                        if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    }
-                                    room.setGameState("Flop");
-                                } else if (room.getGameState().equalsIgnoreCase("Flop")) {
-                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    room.setGameState("Turn");
-                                } else if (room.getGameState().equalsIgnoreCase("Turn")) {
-                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    room.setGameState("River");
-                                }
-                                room.setCommunityCards(communityCards);
-
-                                for (User player : room.getPlayers()) {
-                                    if (!player.getStatus().equals("Folded")) {
-                                        player.setStatus("Waiting");
-                                    }
-                                }
-                                room.setTurnIndex(getFirstActivePlayerIndex(room));
-                                room.setCurrentBet(0);
-                                roomRef.setValue(room);
-                            }
-                        }
-                        if (!room.getGameState().equalsIgnoreCase("River") || !isRoundComplete) {
-                            roomRef.setValue(room);
-                        }
+                        advanceGameRound(room);
                     }
                 }
             });
@@ -225,76 +187,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
-
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                    if (room.getCurrentBet() > 0) {
-                                        int amountToCall = room.getCurrentBet() - player.getCurrentBet();
-
-
-                                        if (amountToCall >0) {
-                                            if(amountToCall >= player.getChips())
-                                                amountToCall = player.getChips();
-
+                                if (room.getCurrentBet() > 0) {
+                                    int amountToCall = room.getCurrentBet() - player.getCurrentBet();
+                                    if (amountToCall > 0) {
+                                        if (amountToCall >= player.getChips()) {
+                                            amountToCall = player.getChips();
                                         }
-
                                         player.setChips(player.getChips() - amountToCall);
                                         room.setPot(room.getPot() + amountToCall);
                                         player.setCurrentBet(player.getCurrentBet() + amountToCall);
-
                                         Toast.makeText(MainActivity.this, "Called " + amountToCall, Toast.LENGTH_SHORT).show();
                                     }
+                                }
                                 player.setStatus("Checked");
                                 break;
                             }
                         }
-
-                        boolean isRoundComplete = true;
-                        for (User player : room.getPlayers()) {
-                            if (!player.getStatus().equals("Checked") && !player.getStatus().equals("Folded")) {
-                                isRoundComplete = false;
-                                break;
-                            }
-                        }
-
-                        if (!isRoundComplete) {
-                            room.setTurnIndex(getNextActivePlayerIndex(room));
-                        } else {
-                            if (room.getGameState().equalsIgnoreCase("River")) {
-                                handleShowdown(room);
-                            } else {
-                                ArrayList<Card> deck = room.getDeck();
-                                ArrayList<Card> communityCards = room.getCommunityCards();
-                                if (communityCards == null) communityCards = new ArrayList<>();
-
-                                if (room.getGameState().equalsIgnoreCase("PreFlop")) {
-                                    for (int i = 0; i < 3; i++) {
-                                        if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    }
-                                    room.setGameState("Flop");
-                                } else if (room.getGameState().equalsIgnoreCase("Flop")) {
-                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    room.setGameState("Turn");
-                                } else if (room.getGameState().equalsIgnoreCase("Turn")) {
-                                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
-                                    room.setGameState("River");
-                                }
-                                room.setCommunityCards(communityCards);
-
-                                for (User player : room.getPlayers()) {
-                                    if (!player.getStatus().equals("Folded")) {
-                                        player.setStatus("Waiting");
-                                    }
-                                }
-                                room.setCurrentBet(0);
-                                room.setTurnIndex(getFirstActivePlayerIndex(room));
-                                roomRef.setValue(room);
-                            }
-                        }
-                        if (!room.getGameState().equalsIgnoreCase("River") || !isRoundComplete) {
-                            roomRef.setValue(room);
-                        }
+                        advanceGameRound(room);
                     }
                 }
             });
@@ -306,9 +218,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                sbBetAmount.setMax(player.getChips());
-                                sbBetAmount.setProgress(0);
-                                tvBetAmount.setText("0");
+                                sbBetAmount.setMax(player.getChips() + player.getCurrentBet());
+                                sbBetAmount.setProgress(room.getCurrentBet());
+                                tvBetAmount.setText(String.valueOf(room.getCurrentBet()));
                                 break;
                             }
                         }
@@ -317,77 +229,142 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
             });
+
         } else if (view.getId() == R.id.btnCancelBet) {
             layoutActionButtons.setVisibility(View.VISIBLE);
             layoutBetting.setVisibility(View.GONE);
+
         } else if (view.getId() == R.id.btnConfirmBet) {
             int finalBetAmount = sbBetAmount.getProgress();
-
             if (finalBetAmount <= 0) {
                 Toast.makeText(this, "Bet must be greater than 0", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
-
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
                                 int amountToAdd = finalBetAmount - player.getCurrentBet();
-
                                 room.setCurrentBet(finalBetAmount);
                                 room.setPot(room.getPot() + amountToAdd);
                                 player.setChips(player.getChips() - amountToAdd);
-                                player.setCurrentBet(finalBetAmount); // ההימור שלו עכשיו עומד על הסכום שהוא בחר
+                                player.setCurrentBet(finalBetAmount);
                                 player.setStatus("Checked");
-                            } else if (!player.getStatus().equals("Folded")) {
+                            } else if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
                                 player.setStatus("Waiting");
                             }
                         }
-
-                        room.setTurnIndex(getNextActivePlayerIndex(room));
-                        roomRef.setValue(room);
-
                         layoutBetting.setVisibility(View.GONE);
                         layoutActionButtons.setVisibility(View.VISIBLE);
+                        advanceGameRound(room);
                     }
                 }
             });
+
         } else if (view.getId() == R.id.btnAllIn) {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom room = task.getResult().getValue(GameRoom.class);
-
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
                                 int allInAmount = player.getChips();
+                                int totalBet = player.getCurrentBet() + allInAmount;
 
-                                if (allInAmount > room.getCurrentBet()) {
-                                    room.setCurrentBet(allInAmount);
+                                if (totalBet > room.getCurrentBet()) {
+                                    room.setCurrentBet(totalBet);
                                 }
-
                                 room.setPot(room.getPot() + allInAmount);
                                 player.setChips(0);
-                                player.setCurrentBet(player.getCurrentBet() + allInAmount);
+                                player.setCurrentBet(totalBet);
                                 player.setStatus("Checked");
-
-                            } else if (!player.getStatus().equals("Folded")) {
+                            } else if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
                                 player.setStatus("Waiting");
                             }
                         }
-
-                        room.setTurnIndex(getNextActivePlayerIndex(room));
-                        roomRef.setValue(room);
-
                         layoutBetting.setVisibility(View.GONE);
                         layoutActionButtons.setVisibility(View.VISIBLE);
+                        advanceGameRound(room);
                     }
                 }
             });
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  לוגיקת ניהול הסיבובים
+    // ══════════════════════════════════════════════════════
+
+    private void advanceGameRound(GameRoom room) {
+        boolean isRoundComplete = true;
+        for (User player : room.getPlayers()) {
+            if (!player.getStatus().equals("Checked") && !player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
+                isRoundComplete = false;
+                break;
+            }
+        }
+
+        if (!isRoundComplete) {
+            room.setTurnIndex(getNextActivePlayerIndex(room));
+            roomRef.setValue(room);
+        } else {
+            if (room.getGameState().equalsIgnoreCase("River")) {
+                handleShowdown(room);
+            } else {
+                ArrayList<Card> deck = room.getDeck();
+                ArrayList<Card> communityCards = room.getCommunityCards();
+                if (communityCards == null) communityCards = new ArrayList<>();
+
+                if (room.getGameState().equalsIgnoreCase("PreFlop")) {
+                    for (int i = 0; i < 3; i++) {
+                        if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                    }
+                    room.setGameState("Flop");
+                } else if (room.getGameState().equalsIgnoreCase("Flop")) {
+                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                    room.setGameState("Turn");
+                } else if (room.getGameState().equalsIgnoreCase("Turn")) {
+                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
+                    room.setGameState("River");
+                }
+                room.setCommunityCards(communityCards);
+
+                int activePlayers = 0;
+                int playersWithChipsCount = 0;
+                for (User player : room.getPlayers()) {
+                    if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
+                        activePlayers++;
+                        if (player.getChips() > 0) playersWithChipsCount++;
+                    }
+                }
+
+                if (activePlayers >= 2 && playersWithChipsCount <= 1) {
+                    roomRef.setValue(room);
+                    new Handler().postDelayed(() -> {
+                        roomRef.get().addOnCompleteListener(task -> {
+                            if (task.isSuccessful() && task.getResult().exists()) {
+                                GameRoom currentRoom = task.getResult().getValue(GameRoom.class);
+                                if (currentRoom != null) {
+                                    advanceGameRound(currentRoom);
+                                }
+                            }
+                        });
+                    }, 1500);
+                } else {
+                    for (User player : room.getPlayers()) {
+                        if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
+                            player.setStatus("Waiting");
+                        }
+                        player.setCurrentBet(0);
+                    }
+                    room.setCurrentBet(0);
+                    room.setTurnIndex(getFirstActivePlayerIndex(room));
+                    roomRef.setValue(room);
+                }
+            }
         }
     }
 
@@ -398,7 +375,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void handleShowdown(GameRoom room) {
         if (room.getPlayers() == null) return;
 
-        // 1. חישוב ציונים
         HashMap<String, Integer> playerScores = new HashMap<>();
         for (User u : room.getPlayers()) {
             if (!u.getStatus().equals("Folded")) {
@@ -411,11 +387,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
-        // 2. מיון לפי השקעה לחישוב side pots
         ArrayList<User> sortedPlayers = new ArrayList<>(room.getPlayers());
         Collections.sort(sortedPlayers, (u1, u2) -> u1.getCurrentBet() - u2.getCurrentBet());
 
-        // 3. מציאת המנצח הראשי
         ArrayList<User> winners = new ArrayList<>();
         int bestScore = 0;
         for (User u : room.getPlayers()) {
@@ -430,7 +404,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
-        // 4. בניית שכבות הקופה (Side Pots) וחלוקת הכסף
         int previousInvested = 0;
         for (int i = 0; i < sortedPlayers.size(); i++) {
             User current = sortedPlayers.get(i);
@@ -465,7 +438,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
-        // 5. בניית הודעת המנצח (שתופיע על הקנבס!)
+        // 🌟 עדכון הבנק ב-Firebase - חישוב רווח והפסד
+        // המארח בלבד עושה את הפעולה הזאת כדי שלא כל המכשירים יכתבו לשרת במקביל
+        if (room.getPlayers().size() > 0 && myUid.equals(room.getPlayers().get(0).getUid())) {
+            DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("Users");
+
+            for (User u : room.getPlayers()) {
+                // חישוב כמה הוא הרוויח או הפסיד בסיבוב הזה
+                int roundProfitOrLoss = u.getChips() - u.getChipsBeforeRound();
+
+                // שליפת היתרה האמיתית מהבנק והוספת הרווח/הפסד אליה
+                usersRef.child(u.getUid()).child("chips").get().addOnSuccessListener(snapshot -> {
+                    if (snapshot.exists()) {
+                        int realBank = snapshot.getValue(Integer.class);
+                        usersRef.child(u.getUid()).child("chips").setValue(realBank + roundProfitOrLoss);
+                    }
+                });
+            }
+        }
+
         StringBuilder msg = new StringBuilder();
         if (winners.size() == 1) {
             msg.append("🏆 ").append(winners.get(0).getNickname()).append(" Wins! 🏆");
@@ -474,25 +465,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             for (User w : winners) msg.append(w.getNickname()).append(" ");
         }
 
-        // מעדכנים את החדר לסטטוס ניצחון ושומרים בפיירבייס כדי שכולם יראו את האנימציה
         room.setWinnerName(msg.toString());
         room.setGameState("Showdown");
         roomRef.setValue(room);
 
-        // 6. טיימר של 4 שניות: מחכים שהשחקנים יראו את הניצחון, ואז מאפסים לסיבוב הבא!
-        new android.os.Handler().postDelayed(() -> {
+        new Handler().postDelayed(() -> {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom currentRoomState = task.getResult().getValue(GameRoom.class);
-                    // מוודאים שאנחנו עדיין בשלב הניצחון לפני האיפוס
                     if (currentRoomState != null && "Showdown".equals(currentRoomState.getGameState())) {
                         resetRoomForNextRound(currentRoomState);
-                        currentRoomState.setWinnerName(""); // מוחקים את הודעת הניצחון
+                        currentRoomState.setWinnerName("");
                         roomRef.setValue(currentRoomState);
                     }
                 }
             });
-        }, 4000); // 4000 מילישניות = 4 שניות תצוגה
+        }, 4000);
     }
 
     // ══════════════════════════════════════════════════════
@@ -504,30 +492,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (room.getCommunityCards() != null) room.getCommunityCards().clear();
 
         for (User player : room.getPlayers()) {
-            // 1. איפוס מה שמשותף לכולם:
+            player.setChipsBeforeRound(player.getChips());
+
             player.setCurrentBet(0);
             player.setHand(new ArrayList<>());
-
-            // 2. קביעת הסטטוס:
             if (player.getChips() <= 0) {
                 player.setStatus("Out");
             } else {
                 player.setStatus("Waiting");
             }
         }
+
         room.setDealerIndex((room.getDealerIndex() + 1) % room.getPlayers().size());
-        int smallBlindIndex, bigBlindIndex, DealerIndex;
+        int smallBlindIndex, bigBlindIndex, dealerTurnIndex;
+
         if(room.getPlayers().size() == 2) {
             smallBlindIndex = room.getDealerIndex();
             bigBlindIndex = (room.getDealerIndex() + 1) % room.getPlayers().size();
-            DealerIndex = smallBlindIndex;
-        }
-        else
-        {
+            dealerTurnIndex = smallBlindIndex;
+        } else {
             smallBlindIndex = (room.getDealerIndex() + 1) % room.getPlayers().size();
             bigBlindIndex = (room.getDealerIndex() + 2) % room.getPlayers().size();
-            DealerIndex = (bigBlindIndex + 1) % room.getPlayers().size();
+            dealerTurnIndex = (bigBlindIndex + 1) % room.getPlayers().size();
         }
+
         int sbAmount = 100;
         int bbAmount = 200;
 
@@ -543,13 +531,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         room.setPot(actualSb + actualBb);
         room.setCurrentBet(actualBb);
-
-        room.setTurnIndex(DealerIndex);
-
-
-
-
-
+        room.setTurnIndex(dealerTurnIndex);
 
         Deck newDeck = new Deck();
         newDeck.shuffle();
@@ -566,9 +548,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 player.setHand(newHand);
             }
         }
-
-
-
     }
 
     // ══════════════════════════════════════════════════════
@@ -587,7 +566,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private int getFirstActivePlayerIndex(GameRoom room) {
         int firstPlayer = 0;
-        while (firstPlayer < room.getPlayers().size() && room.getPlayers().get(firstPlayer).getStatus().equals("Folded") ||  firstPlayer < room.getPlayers().size() && room.getPlayers().get(firstPlayer).getStatus().equals("Out")) {
+        while (firstPlayer < room.getPlayers().size() && (room.getPlayers().get(firstPlayer).getStatus().equals("Folded") || room.getPlayers().get(firstPlayer).getStatus().equals("Out"))) {
             firstPlayer++;
         }
         return firstPlayer;

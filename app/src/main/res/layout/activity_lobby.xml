@@ -1,128 +1,267 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#35654d"
-    android:id="@+id/LobbyActivity"
+    android:background="#070D07"
+    android:fillViewport="true"
     tools:context=".LobbyActivity">
 
-    <TextView
-        android:id="@+id/tvLobbyTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:fontFamily="sans-serif-black"
-        android:shadowColor="#000000"
-        android:shadowDx="10"
-        android:shadowDy="10"
-        android:shadowRadius="10"
-        android:text="POKER LOBBY"
-        android:textColor="#FFD700"
-        android:textSize="48sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <LinearLayout
-        android:id="@+id/layoutCreate"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="60dp"
-        android:background="#99000000"
-        android:gravity="center"
         android:orientation="vertical"
-        android:padding="24dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/guideline"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvLobbyTitle">
+        android:gravity="center_horizontal"
+        android:paddingHorizontal="28dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="36dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="START NEW GAME"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:text="♠  POKER  ♠"
+            android:textColor="#33C8A84B"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.4"
+            android:layout_marginBottom="6dp"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="Be the host and invite friends\nwith a unique code"
-            android:textColor="#CCCCCC"
-            android:textSize="14sp" />
+            android:text="LOBBY"
+            android:textColor="#C8A84B"
+            android:textSize="42sp"
+            android:textStyle="bold"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="3"
+            android:shadowRadius="12"
+            android:layout_marginBottom="4dp"/>
 
-        <Button
-            android:id="@+id/btnCreateRoom"
-            android:layout_width="200dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="20dp"
-            android:backgroundTint="#D32F2F"
-            android:text="CREATE ROOM"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+        <View
+            android:layout_width="60dp"
+            android:layout_height="1.5dp"
+            android:background="#C8A84B"
+            android:layout_marginBottom="28dp"/>
 
-    </LinearLayout>
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.5" />
-
-    <LinearLayout
-        android:id="@+id/layoutJoin"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="60dp"
-        android:background="#99000000"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="24dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/guideline"
-        app:layout_constraintTop_toBottomOf="@+id/tvLobbyTitle">
-
-        <TextView
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="JOIN A GAME"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_chips_pill"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            android:layout_marginBottom="48dp">
 
-        <EditText
-            android:id="@+id/etRoomCode"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MY STACK  "
+                android:textColor="#88C8A84B"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"/>
+
+            <TextView
+                android:id="@+id/tvMyChips"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="My Chips: Loading..."
+                android:textColor="#C8A84B"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:shadowColor="#FF000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="8"/>
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="16dp"
-            android:background="#FFFFFF"
-            android:hint="Enter Room Code"
-            android:inputType="number"
-            android:padding="10dp"
-            android:textAlignment="center"
-            android:textColor="#000000"
-            android:textStyle="bold" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_lobby_card"
+            android:padding="24dp"
+            android:layout_marginBottom="20dp">
 
-        <Button
-            android:id="@+id/btnJoinRoom"
-            android:layout_width="200dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="20dp"
-            android:backgroundTint="#1976D2"
-            android:text="JOIN TABLE"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="START A GAME"
+                android:textColor="#88C8A84B"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.25"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Create a private room and invite your friends"
+                android:textColor="#66FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginBottom="18dp"/>
+
+            <Button
+                android:id="@+id/btnCreateRoom"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:text="CREATE ROOM"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1A0E00"
+                android:letterSpacing="0.1"
+                android:background="@drawable/btn_create_room"
+                android:stateListAnimator="@null"
+                android:elevation="6dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#22FFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="  OR  "
+                android:textColor="#44FFFFFF"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#22FFFFFF"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_lobby_card"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="JOIN A GAME"
+                android:textColor="#88C8A84B"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.25"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enter the room code shared by the host"
+                android:textColor="#66FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginBottom="16dp"/>
+
+            <EditText
+                android:id="@+id/etRoomCode"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:background="@drawable/bg_room_code_input"
+                android:gravity="center"
+                android:hint="Enter Room Code"
+                android:inputType="number"
+                android:padding="12dp"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                android:layout_marginBottom="14dp"/>
+
+            <Button
+                android:id="@+id/btnJoinRoom"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:text="JOIN TABLE"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#BBDEFB"
+                android:letterSpacing="0.1"
+                android:background="@drawable/btn_join_room"
+                android:stateListAnimator="@null"
+                android:elevation="6dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp"
+            android:layout_marginTop="20dp">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#22FFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="  OR  "
+                android:textColor="#44FFFFFF"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#22FFFFFF"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_lobby_card"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PUBLIC TABLES"
+                android:textColor="#88C8A84B"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.25"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Join an open game instantly"
+                android:textColor="#66FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginBottom="16dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvPublicRooms"
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                android:scrollbars="vertical"/>
+
+        </LinearLayout>
 
     </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

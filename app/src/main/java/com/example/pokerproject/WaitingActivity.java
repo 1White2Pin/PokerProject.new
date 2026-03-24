@@ -4,8 +4,10 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -32,10 +34,15 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
     private LinearLayout adminPanel, guestMessage;
     private String roomId;
     private String myUid;
-    private int currentChips = 10000;
+
+    private int currentChips = 500;
+    private int maxAllowedChips = 10000;
+
     private boolean amIHost = false;
     private DatabaseReference roomRef;
     private PlayerAdapter adapter;
+    private CheckBox cbIsPrivate;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +67,8 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         btnMinusChips = findViewById(R.id.btnMinusChips);
         adminPanel = findViewById(R.id.adminPanel);
         guestMessage = findViewById(R.id.guestMessage);
+        cbIsPrivate = findViewById(R.id.cbIsPrivate);
+
 
         btnMinusChips.setOnClickListener(this);
         btnPlusChips.setOnClickListener(this);
@@ -68,6 +77,13 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         tvRoomCode.setText(roomId);
         tvChipsValue.setText(String.valueOf(currentChips));
         updateRoom();
+
+        cbIsPrivate.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (amIHost) {
+                // שומרים את ההחלטה בפיירבייס בזמן אמת
+                roomRef.child("private").setValue(isChecked);
+            }
+        });
 
         rvPlayers = findViewById(R.id.rvPlayers);
         rvPlayers.setHasFixedSize(true);
@@ -91,101 +107,86 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         rvPlayers.setAdapter(adapter);
     }
 
-    // פונקציית עזר ליצירת חפיסה מעורבבת
-    private ArrayList<Card> createShuffledDeck() {
-        ArrayList<Card> deck = new ArrayList<>();
-        // מעבר על כל הצורות והמספרים
-        for (Suit suit : Suit.values()) {
-            for (Rank rank : Rank.values()) {
-                deck.add(new Card(suit, rank));
-            }
-        }
-        // ערבוב החפיסה
-        java.util.Collections.shuffle(deck);
-        return deck;
-    }
-
     @Override
     public void onClick(View view) {
         if( view.getId() == R.id.btnMinusChips) {
-            if(currentChips > 500) {
-                currentChips -= 500;
+            if(currentChips > 100) {
+                currentChips -= 100;
                 tvChipsValue.setText(String.valueOf(currentChips));
             } else {
-                tvChipsValue.setText("500");
+                Toast.makeText(this, "Minimum buy-in is 100", Toast.LENGTH_SHORT).show();
             }
         }
+
         if(view.getId() == R.id.btnPlusChips) {
-            if(currentChips < 10000) {
-                currentChips += 500;
+            if(currentChips + 100 <= maxAllowedChips) {
+                currentChips += 100;
                 tvChipsValue.setText(String.valueOf(currentChips));
             } else {
-                tvChipsValue.setText("10000");
+                Toast.makeText(this, "Cannot increase further! The lowest player balance is " + maxAllowedChips, Toast.LENGTH_SHORT).show();
             }
         }
+
         if(view.getId() == R.id.btnStartGame) {
-            // 1. משיכת המצב העדכני של החדר
             roomRef.get().addOnSuccessListener(dataSnapshot -> {
                 GameRoom room = dataSnapshot.getValue(GameRoom.class);
 
                 if (room != null) {
-                    // 2. יצירת חפיסה חדשה
-                    ArrayList<Card> deck = createShuffledDeck();
-
-                    // 3. חלוקת קלפים לכל שחקן
                     if (room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
-                            ArrayList<Card> hand = new ArrayList<>();
-                            hand.add(deck.remove(0));
-                            hand.add(deck.remove(0));
-
-                            player.setHand(hand);
-                            player.setStatus("Active");
+                            player.setChips(currentChips);
                         }
                     }
 
-                    // 4. הגדרת המשתנים לתחילת המשחק
-                    room.setGameActive(true);
                     room.setStartingChips(currentChips);
-                    room.setDeck(deck);
-                    room.setGameState("PreFlop");
-                    room.setCommunityCards(new ArrayList<>());
-
-                    // 5. שמירה של החדר המעודכן לפיירבייס
+                    room.setGameActive(true);
                     roomRef.setValue(room);
                 }
             });
         }
     }
 
-    // פונקציה שמפעילה את ההאזנה
     public void updateRoom(){
         roomRef.addValueEventListener(this);
     }
 
     @Override
     public void onDataChange(@NonNull DataSnapshot snapshot) {
-        // 1. בדיקה אם החדר קיים
         if(!snapshot.exists()) {
             finish();
             return;
         }
 
-        // 2. המרת הנתונים לאובייקט
         GameRoom room = snapshot.getValue(GameRoom.class);
 
         if (room != null) {
-            // 3. עדכון משתנה המארח
             if (room.getHostId() != null) {
                 amIHost = room.getHostId().equals(myUid);
             }
 
-            // 4. עדכון רשימת השחקנים במסך
             if (room.getPlayers() != null) {
                 adapter.updateList(room.getPlayers(), amIHost);
+
+                int minBankroll = Integer.MAX_VALUE;
+                for (User p : room.getPlayers()) {
+                    if (p.getChips() < minBankroll) {
+                        minBankroll = p.getChips();
+                    }
+                }
+
+                maxAllowedChips = minBankroll;
+
+                if (currentChips > maxAllowedChips) {
+                    currentChips = maxAllowedChips;
+                    if(currentChips < 500) currentChips = 500;
+
+                    if (amIHost) {
+                        tvChipsValue.setText(String.valueOf(currentChips));
+                        Toast.makeText(this, "Buy-in automatically adjusted to match the lowest player balance", Toast.LENGTH_SHORT).show();
+                    }
+                }
             }
 
-            // 5. עדכון כפתורי הניהול
             if(amIHost) {
                 adminPanel.setVisibility(View.VISIBLE);
                 guestMessage.setVisibility(View.GONE);
@@ -197,14 +198,10 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
                 tvChipsValue.setText(String.valueOf(room.getStartingChips()));
             }
 
-            // 6. בדיקת תחילת משחק ומעבר מסך
             if(room.isGameActive()) {
                 Intent intent = new Intent(WaitingActivity.this, MainActivity.class);
                 intent.putExtra("roomId", roomId);
-
-                // ניתוק ההאזנה כדי למנוע את פתיחת המסך מחדש בלחיצות בתוך המשחק
                 roomRef.removeEventListener(this);
-
                 startActivity(intent);
                 finish();
             }
