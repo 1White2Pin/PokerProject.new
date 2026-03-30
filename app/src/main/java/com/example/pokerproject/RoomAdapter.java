@@ -35,6 +35,11 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
     public void onBindViewHolder(@NonNull RoomAdapter.RoomViewHolder holder, int position) {
         GameRoom room = rooms.get(position);
         holder.tvItemRoomCode.setText("Room: " + room.getRoomID());
+        if (room.getHostName() != null) {
+            holder.tvHostName.setText("Host: " + room.getHostName());
+        } else {
+            holder.tvHostName.setText("Host: Unknown");
+        }
 
         int playerCount = (room.getPlayers() != null) ? room.getPlayers().size() : 0;
         holder.tvItemPlayerCount.setText("Players: " + playerCount + "/4");
@@ -55,14 +60,15 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
     }
 
     public class RoomViewHolder extends RecyclerView.ViewHolder {
-        TextView tvItemRoomCode, tvItemPlayerCount;
+        TextView tvItemRoomCode, tvItemPlayerCount, tvHostName;
         Button btnItemJoin;
 
         public RoomViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvItemRoomCode = itemView.findViewById(R.id.tvItemRoomCode);
+            tvItemRoomCode = itemView.findViewById(R.id.tvRoomCode);
             tvItemPlayerCount = itemView.findViewById(R.id.tvItemPlayerCount);
-            btnItemJoin = itemView.findViewById(R.id.btnItemJoin);
+            tvHostName = itemView.findViewById(R.id.tvHostName);;
+            btnItemJoin = itemView.findViewById(R.id.btnJoinRoom);
         }
     }
 }

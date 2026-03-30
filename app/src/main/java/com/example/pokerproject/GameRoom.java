@@ -3,7 +3,7 @@ package com.example.pokerproject;
 import java.util.ArrayList;
 
 public class GameRoom {
-    private String roomID, hostId, gameStatus;
+    private String roomID, hostId, gameStatus, hostName;
     private int pot;
     private ArrayList<User> players;
     private ArrayList<Card> communityCards;
@@ -23,6 +23,8 @@ public class GameRoom {
     public void setDealerIndex(int dealerIndex) {
         this.dealerIndex = dealerIndex;
     }
+    public String getHostName(){return hostName;}
+    public void setHostName(String hostName){this.hostName = hostName;}
 
 
     public String getWinnerName() {

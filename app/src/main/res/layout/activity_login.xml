@@ -1,88 +1,181 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#053610"
-    >
-    <View
-    android:layout_width="300dp"
-    android:layout_height="300dp"
-    android:background="@drawable/ic_launcher_background"
-    android:alpha="0.1"
-    android:rotation="45"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toEndOf="parent" />
+    android:background="#070D07">
 
+    <!-- קישוטי רקע — סמלי קלפים עדינים -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="♠"
+        android:textColor="#08C8A84B"
+        android:textSize="180sp"
+        android:rotation="-15"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="-30dp"
+        android:layout_marginBottom="-20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="♦"
+        android:textColor="#08C8A84B"
+        android:textSize="140sp"
+        android:rotation="20"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginEnd="-20dp"
+        android:layout_marginTop="-10dp"/>
+
+    <!-- תוכן מרכזי -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
         android:orientation="vertical"
-        android:padding="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:gravity="center_horizontal"
+        android:paddingHorizontal="32dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <ImageView
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_marginBottom="16dp"
-            android:src="@android:drawable/btn_star_big_on"
-            app:tint="#FFD700" />
+        <!-- לוגו / כותרת -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="♠  ♥  ♦  ♣"
+            android:textColor="#33C8A84B"
+            android:textSize="16sp"
+            android:letterSpacing="0.4"
+            android:layout_marginBottom="10dp"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="32dp"
-            android:fontFamily="sans-serif-black"
-            android:text="POKER MASTER"
-            android:textColor="#FFD700"
-            android:textSize="36sp"
-            android:textStyle="bold" />
+            android:text="POKER"
+            android:textColor="#C8A84B"
+            android:textSize="52sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="4"
+            android:shadowRadius="16"
+            android:layout_marginBottom="2dp"/>
 
-        <EditText
-            android:id="@+id/etEmail"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MASTER"
+            android:textColor="#88C8A84B"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.5"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- קו זהוב -->
+        <View
+            android:layout_width="56dp"
+            android:layout_height="1.5dp"
+            android:background="#C8A84B"
+            android:layout_marginBottom="40dp"/>
+
+        <!-- כרטיס טופס -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="#33000000"
-            android:hint="Email Address"
-            android:inputType="textEmailAddress"
-            android:padding="16dp"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#AAAAAA" />
+            android:orientation="vertical"
+            android:background="@drawable/bg_login_card"
+            android:padding="24dp"
+            android:layout_marginBottom="20dp">
 
-        <EditText
-            android:id="@+id/etPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="32dp"
-            android:background="#33000000"
-            android:hint="Password"
-            android:inputType="textPassword"
-            android:padding="16dp"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#AAAAAA" />
+            <!-- Email label + field -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="EMAIL"
+                android:textColor="#66C8A84B"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.25"
+                android:layout_marginBottom="6dp"/>
 
+            <EditText
+                android:id="@+id/etEmail"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:hint="your@email.com"
+                android:inputType="textEmailAddress"
+                android:paddingHorizontal="16dp"
+                android:background="@drawable/bg_input_field"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginBottom="20dp"/>
+
+            <!-- Password label + field -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PASSWORD"
+                android:textColor="#66C8A84B"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.25"
+                android:layout_marginBottom="6dp"/>
+
+            <EditText
+                android:id="@+id/etPassword"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:hint="••••••••"
+                android:inputType="textPassword"
+                android:paddingHorizontal="16dp"
+                android:background="@drawable/bg_input_field"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"/>
+
+        </LinearLayout>
+
+        <!-- כפתור LOGIN -->
         <Button
             android:id="@+id/btnLogin"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="#B71C1C"
-            android:padding="14dp"
+            android:layout_height="54dp"
             android:text="ENTER TABLE"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#1A0E00"
+            android:letterSpacing="0.1"
+            android:background="@drawable/btn_login"
+            android:stateListAnimator="@null"
+            android:elevation="8dp"
+            android:layout_marginBottom="20dp"/>
 
-        <TextView
-            android:id="@+id/tvRegisterLink"
+        <!-- קישור הרשמה -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="New Player? Create Account"
-            android:textColor="#FFD700"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="New player?  "
+                android:textColor="#44FFFFFF"
+                android:textSize="14sp"/>
+
+            <TextView
+                android:id="@+id/tvRegisterLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Create Account"
+                android:textColor="#C8A84B"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
 
     </LinearLayout>
 

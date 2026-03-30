@@ -3,18 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="6dp"
-    android:layout_marginHorizontal="4dp"
-    app:cardBackgroundColor="#1A1A1A"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardBackgroundColor="#121D17"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_seat_card">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -23,31 +24,85 @@
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tvItemRoomCode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Room: 1234"
+                android:text="ROOM CODE"
+                android:textColor="#55C8A84B"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1"/>
+
+            <TextView
+                android:id="@+id/tvRoomCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="----"
                 android:textColor="#C8A84B"
-                android:textSize="18sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvItemPlayerCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Players: 2/5"
+                android:text="Players: 2/4"
                 android:textColor="#AAAAAA"
                 android:textSize="14sp"
                 android:layout_marginTop="4dp"/>
+
+            <TextView
+                android:id="@+id/tvHostName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Host: Unknown"
+                android:textColor="#88FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp"/>
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnItemJoin"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="JOIN"
-            android:textStyle="bold"
-            android:backgroundTint="#C8A84B"
-            android:textColor="#070D07" />
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@android:drawable/ic_menu_sort_by_size"
+                    app:tint="#C8A84B"
+                    android:layout_marginEnd="4dp"/>
+
+                <TextView
+                    android:id="@+id/tvStartingChips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="500"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnJoinRoom"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="JOIN"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A0E00"
+                android:backgroundTint="#C8A84B"
+                app:cornerRadius="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"/>
+        </LinearLayout>
+
     </LinearLayout>
 </androidx.cardview.widget.CardView>

@@ -248,6 +248,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
                                 int amountToAdd = finalBetAmount - player.getCurrentBet();
+                                if(finalBetAmount < room.getCurrentBet())
+                                {
+                                    Toast.makeText(MainActivity.this, "Not enough chips!", Toast.LENGTH_SHORT).show();                                    return;
+                                }
+                                if (amountToAdd > player.getChips()) {
+                                    amountToAdd = player.getChips();
+                                }
+
                                 room.setCurrentBet(finalBetAmount);
                                 room.setPot(room.getPot() + amountToAdd);
                                 player.setChips(player.getChips() - amountToAdd);

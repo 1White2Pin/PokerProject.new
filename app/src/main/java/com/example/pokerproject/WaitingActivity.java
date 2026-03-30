@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,9 +16,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -28,7 +28,7 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 
 public class WaitingActivity extends AppCompatActivity implements View.OnClickListener, ValueEventListener {
-    private RecyclerView rvPlayers;
+
     private TextView tvRoomCode, tvChipsValue, tvWaitMessage;
     private Button btnStartGame, btnPlusChips, btnMinusChips;
     private LinearLayout adminPanel, guestMessage;
@@ -40,9 +40,12 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
 
     private boolean amIHost = false;
     private DatabaseReference roomRef;
-    private PlayerAdapter adapter;
     private CheckBox cbIsPrivate;
 
+    // מערכים של הכיסאות
+    private TextView[] tvPlayerNames = new TextView[4];
+    private ImageView[] ivPlayers = new ImageView[4];
+    private Button[] btnKicks = new Button[4];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +62,16 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         roomId = getIntent().getStringExtra("ROOM_ID");
         roomRef = FirebaseDatabase.getInstance().getReference("Rooms").child(roomId);
 
+        // 🌟 משימה 6: הגנת ניתוק פתאומי (אם המארח נופל, החדר נמחק)
+        roomRef.get().addOnSuccessListener(snapshot -> {
+            if (snapshot.exists()) {
+                GameRoom room = snapshot.getValue(GameRoom.class);
+                if (room != null && room.getHostId() != null && room.getHostId().equals(myUid)) {
+                    roomRef.onDisconnect().removeValue();
+                }
+            }
+        });
+
         tvRoomCode = findViewById(R.id.tvRoomCode);
         tvChipsValue = findViewById(R.id.tvChipsValue);
         tvWaitMessage = findViewById(R.id.tvWaitMessage);
@@ -69,6 +82,20 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         guestMessage = findViewById(R.id.guestMessage);
         cbIsPrivate = findViewById(R.id.cbIsPrivate);
 
+        tvPlayerNames[0] = findViewById(R.id.tvPlayer1Name);
+        tvPlayerNames[1] = findViewById(R.id.tvPlayer2Name);
+        tvPlayerNames[2] = findViewById(R.id.tvPlayer3Name);
+        tvPlayerNames[3] = findViewById(R.id.tvPlayer4Name);
+
+        ivPlayers[0] = findViewById(R.id.ivPlayer1);
+        ivPlayers[1] = findViewById(R.id.ivPlayer2);
+        ivPlayers[2] = findViewById(R.id.ivPlayer3);
+        ivPlayers[3] = findViewById(R.id.ivPlayer4);
+
+        btnKicks[0] = findViewById(R.id.btnKick1);
+        btnKicks[1] = findViewById(R.id.btnKick2);
+        btnKicks[2] = findViewById(R.id.btnKick3);
+        btnKicks[3] = findViewById(R.id.btnKick4);
 
         btnMinusChips.setOnClickListener(this);
         btnPlusChips.setOnClickListener(this);
@@ -80,31 +107,9 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
 
         cbIsPrivate.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (amIHost) {
-                // שומרים את ההחלטה בפיירבייס בזמן אמת
                 roomRef.child("private").setValue(isChecked);
             }
         });
-
-        rvPlayers = findViewById(R.id.rvPlayers);
-        rvPlayers.setHasFixedSize(true);
-        rvPlayers.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new PlayerAdapter(myUid, new OnPlayerKickListener() {
-            @Override
-            public void onKick(User player) {
-                roomRef.child("players").get().addOnCompleteListener(task -> {
-                    ArrayList<User> remainingPlayers = new ArrayList<>();
-                    DataSnapshot snapshot = task.getResult();
-                    for(DataSnapshot child : snapshot.getChildren()) {
-                        User user = child.getValue(User.class);
-                        if(!user.getUid().equals(player.getUid())) {
-                            remainingPlayers.add(user);
-                        }
-                    }
-                    roomRef.child("players").setValue(remainingPlayers);
-                });
-            }
-        });
-        rvPlayers.setAdapter(adapter);
     }
 
     @Override
@@ -152,7 +157,9 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
 
     @Override
     public void onDataChange(@NonNull DataSnapshot snapshot) {
+        // 🌟 משימה 6: אם החדר נמחק (המארח יצא), האורחים עפים ללובי
         if(!snapshot.exists()) {
+            Toast.makeText(this, "The host has closed the room.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -165,8 +172,6 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
             }
 
             if (room.getPlayers() != null) {
-                adapter.updateList(room.getPlayers(), amIHost);
-
                 int minBankroll = Integer.MAX_VALUE;
                 for (User p : room.getPlayers()) {
                     if (p.getChips() < minBankroll) {
@@ -205,10 +210,100 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
                 startActivity(intent);
                 finish();
             }
+
+            if (!amIHost) {
+                boolean amIStillIn = false;
+
+                if (room.getPlayers() != null) {
+                    for(User u : room.getPlayers()) {
+                        if(u.getUid().equals(myUid)) {
+                            amIStillIn = true;
+                            break;
+                        }
+                    }
+                }
+
+                if(!amIStillIn) {
+                    Toast.makeText(WaitingActivity.this, "You were kicked from the room", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+            }
+
+            // 1. קודם כל מנקים את כל 4 הכיסאות (The Cleaner)
+            for(int i = 0; i < 4; i++) {
+                tvPlayerNames[i].setText("Empty");
+                // אפשר לשים פה תמונת ברירת מחדל אם רוצים ivPlayers[i].setImageResource(...)
+                btnKicks[i].setVisibility(View.GONE);
+                btnKicks[i].setOnClickListener(null);
+            }
+
+            // 2. עכשיו מושיבים את השחקנים הקיימים (The Seater)
+            if(room.getPlayers() != null) {
+                for (int i = 0; i < room.getPlayers().size(); i++) {
+                    if (i >= 4) break; // הגנה שלא נחרוג מ-4 כיסאות
+
+                    User player = room.getPlayers().get(i);
+                    tvPlayerNames[i].setText(player.getNickname());
+                    if(player.getImageURL() != null && !player.getImageURL().isEmpty()) {
+                        Glide.with(this).load(player.getImageURL()).into(ivPlayers[i]);
+                    }
+
+                    // 🌟 התיקון הקריטי ל-KICK!
+                    // רק אם אני המארח, ורק אם השחקן הזה הוא **לא** אני - תראה את הכפתור
+                    if(amIHost && !player.getUid().equals(myUid)) {
+                        btnKicks[i].setVisibility(View.VISIBLE);
+                        btnKicks[i].setOnClickListener(v -> kickPlayer(player));
+                    } else {
+                        btnKicks[i].setVisibility(View.GONE);
+                        btnKicks[i].setOnClickListener(null);
+                    }
+                }
+            }
         }
+    }
+
+    private void kickPlayer(User player) {
+        roomRef.child("players").get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                ArrayList<User> remainingPlayers = new ArrayList<>();
+                DataSnapshot snapshot = task.getResult();
+                for(DataSnapshot child : snapshot.getChildren()) {
+                    User user = child.getValue(User.class);
+                    if(user != null && !user.getUid().equals(player.getUid())) {
+                        remainingPlayers.add(user);
+                    }
+                }
+                roomRef.child("players").setValue(remainingPlayers);
+            }
+        });
     }
 
     @Override
     public void onCancelled(@NonNull DatabaseError error) {
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (roomRef != null) {
+            if (amIHost) {
+                roomRef.removeValue();
+            } else if (myUid != null) {
+                roomRef.child("players").get().addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult().exists()) {
+                        ArrayList<User> remainingPlayers = new ArrayList<>();
+                        for (DataSnapshot child : task.getResult().getChildren()) {
+                            User user = child.getValue(User.class);
+                            if (user != null && !user.getUid().equals(myUid)) {
+                                remainingPlayers.add(user);
+                            }
+                        }
+                        roomRef.child("players").setValue(remainingPlayers);
+                    }
+                });
+            }
+        }
     }
 }

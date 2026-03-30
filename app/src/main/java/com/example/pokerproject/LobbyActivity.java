@@ -121,6 +121,8 @@ public class LobbyActivity extends AppCompatActivity implements View.OnClickList
 
                     GameRoom newRoom = new GameRoom(roomID, myUid, false);
                     newRoom.getPlayers().add(myProfile);
+                    String myNickname = dbUser.getNickname();
+                    newRoom.setHostName(myNickname);
 
                     FirebaseDatabase.getInstance().getReference("Rooms")
                             .child(roomID)
