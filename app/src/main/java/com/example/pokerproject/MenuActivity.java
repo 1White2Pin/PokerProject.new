@@ -97,7 +97,7 @@ public class MenuActivity extends AppCompatActivity implements View.OnClickListe
         }
         else if(view.getId() == R.id.btnPlayOffline)
         {
-            Intent intent = new Intent(MenuActivity.this, MainActivity.class);
+            Intent intent = new Intent(MenuActivity.this, OfflineGameActivity.class);
             intent.putExtra("isOnline", false);
             startActivity(intent);
             finish();
