@@ -110,7 +110,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     if (room != null && room.getPlayers() != null) {
                         tvPotSize.setText("Pot: " + room.getPot());
 
-                        // 🌟 התיקון הקריטי: אם עדיין אין קלפים, לא מציירים כלום!
                         if (room.getDeck() == null || room.getDeck().isEmpty()) {
                             // רק המארח "הדילר" מאפס את החדר ומחלק קלפים
                             if (room.getPlayers().size() >= 2 && myUid.equals(room.getPlayers().get(0).getUid())) {

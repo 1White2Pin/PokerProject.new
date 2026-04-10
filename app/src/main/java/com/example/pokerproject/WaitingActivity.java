@@ -62,7 +62,6 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
         roomId = getIntent().getStringExtra("ROOM_ID");
         roomRef = FirebaseDatabase.getInstance().getReference("Rooms").child(roomId);
 
-        // 🌟 משימה 6: הגנת ניתוק פתאומי (אם המארח נופל, החדר נמחק)
         roomRef.get().addOnSuccessListener(snapshot -> {
             if (snapshot.exists()) {
                 GameRoom room = snapshot.getValue(GameRoom.class);
@@ -283,27 +282,5 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
     public void onCancelled(@NonNull DatabaseError error) {
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
 
-        if (roomRef != null) {
-            if (amIHost) {
-                roomRef.removeValue();
-            } else if (myUid != null) {
-                roomRef.child("players").get().addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && task.getResult().exists()) {
-                        ArrayList<User> remainingPlayers = new ArrayList<>();
-                        for (DataSnapshot child : task.getResult().getChildren()) {
-                            User user = child.getValue(User.class);
-                            if (user != null && !user.getUid().equals(myUid)) {
-                                remainingPlayers.add(user);
-                            }
-                        }
-                        roomRef.child("players").setValue(remainingPlayers);
-                    }
-                });
-            }
-        }
-    }
 }
