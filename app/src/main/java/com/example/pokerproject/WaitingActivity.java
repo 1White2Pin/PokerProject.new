@@ -156,7 +156,6 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
 
     @Override
     public void onDataChange(@NonNull DataSnapshot snapshot) {
-        // 🌟 משימה 6: אם החדר נמחק (המארח יצא), האורחים עפים ללובי
         if(!snapshot.exists()) {
             Toast.makeText(this, "The host has closed the room.", Toast.LENGTH_SHORT).show();
             finish();
