@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Views;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -21,6 +21,10 @@ import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import Models.Card;
+import Models.GameRoom;
+import Models.User;
 
 public class PokerGameView extends View {
 

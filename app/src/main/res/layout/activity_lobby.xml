@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#070D07"
     android:fillViewport="true"
-    tools:context=".LobbyActivity">
+    tools:context="Activities.LobbyActivity">
 
     <LinearLayout
         android:layout_width="match_parent"

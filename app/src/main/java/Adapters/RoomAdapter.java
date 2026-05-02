@@ -1,6 +1,5 @@
-package com.example.pokerproject;
+package Adapters;
 
-import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,7 +9,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.pokerproject.R;
+
 import java.util.ArrayList;
+
+import Models.GameRoom;
 
 public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
     private ArrayList<GameRoom> rooms;

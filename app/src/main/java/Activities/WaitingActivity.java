@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Activities;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -18,6 +18,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.bumptech.glide.Glide;
+import Models.GameRoom;
+import com.example.pokerproject.R;
+import Models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -202,7 +205,7 @@ public class WaitingActivity extends AppCompatActivity implements View.OnClickLi
             }
 
             if(room.isGameActive()) {
-                Intent intent = new Intent(WaitingActivity.this, MainActivity.class);
+                Intent intent = new Intent(WaitingActivity.this, OnlineActivity.class);
                 intent.putExtra("roomId", roomId);
                 roomRef.removeEventListener(this);
                 startActivity(intent);

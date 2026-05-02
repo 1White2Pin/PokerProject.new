@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Models;
 
 public enum Suit {
         HEARTS,

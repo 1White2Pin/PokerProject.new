@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Activities;
 
 import android.Manifest;
 import android.app.ProgressDialog;
@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -21,6 +20,10 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
+import Helpers.EmailValidator;
+import Helpers.IsraeliPhoneNumberValidator;
+import com.example.pokerproject.R;
+import Models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;

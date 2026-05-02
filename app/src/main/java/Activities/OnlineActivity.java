@@ -1,6 +1,5 @@
-package com.example.pokerproject;
+package Activities;
 
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -17,6 +16,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import Models.Card;
+import Models.Deck;
+import Models.GameRoom;
+import Helpers.HandEvaluator;
+import Views.PokerGameView;
+import com.example.pokerproject.R;
+import Models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -29,7 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
+public class OnlineActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
 
     PokerGameView pokerGameView;
     Button btnFold, btnCheck, btnRaise;
@@ -159,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(MainActivity.this, "Database Error", Toast.LENGTH_SHORT).show();
+                Toast.makeText(OnlineActivity.this, "Database Error", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -198,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                         player.setChips(player.getChips() - amountToCall);
                                         room.setPot(room.getPot() + amountToCall);
                                         player.setCurrentBet(player.getCurrentBet() + amountToCall);
-                                        Toast.makeText(MainActivity.this, "Called " + amountToCall, Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(OnlineActivity.this, "Called " + amountToCall, Toast.LENGTH_SHORT).show();
                                     }
                                 }
                                 player.setStatus("Checked");
@@ -249,7 +255,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 int amountToAdd = finalBetAmount - player.getCurrentBet();
                                 if(finalBetAmount < room.getCurrentBet())
                                 {
-                                    Toast.makeText(MainActivity.this, "Not enough chips!", Toast.LENGTH_SHORT).show();                                    return;
+                                    Toast.makeText(OnlineActivity.this, "Not enough chips!", Toast.LENGTH_SHORT).show();                                    return;
                                 }
                                 if (amountToAdd > player.getChips()) {
                                     amountToAdd = player.getChips();

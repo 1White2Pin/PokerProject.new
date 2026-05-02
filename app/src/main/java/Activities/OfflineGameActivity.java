@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Activities;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
@@ -16,8 +16,15 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import Models.Card;
+import Models.Deck;
+import Models.GameRoom;
+import Helpers.HandEvaluator;
+import Views.PokerGameView;
+import com.example.pokerproject.R;
+import Models.User;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Random;
 

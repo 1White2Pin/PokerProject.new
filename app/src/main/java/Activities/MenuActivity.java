@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Activities;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,12 +13,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.pokerproject.R;
+import Models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import java.sql.DatabaseMetaData;
 
 public class MenuActivity extends AppCompatActivity implements View.OnClickListener {
     private Button btnOnline, btnOffline, btnLogOut;

@@ -26,7 +26,7 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.PokerProject">
         <activity
-            android:name=".OfflineGameActivity"
+            android:name="Activities.OfflineGameActivity"
             android:exported="false"
             android:screenOrientation="landscape"/>
 
@@ -41,25 +41,25 @@
         </provider>
 
         <activity
-            android:name=".WaitingActivity"
+            android:name="Activities.WaitingActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".LobbyActivity"
+            android:name="Activities.LobbyActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".GameRoom"
+            android:name="Models.GameRoom"
             android:exported="false" />
         <activity
-            android:name=".MenuActivity"
+            android:name="Activities.MenuActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".RegisterActivity"
+            android:name="Activities.RegisterActivity"
             android:exported="false" />
         <activity
-            android:name=".LoginActivity"
+            android:name="Activities.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -68,7 +68,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".MainActivity"
+            android:name="Activities.OnlineActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
     </application>

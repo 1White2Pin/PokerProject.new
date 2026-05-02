@@ -1,7 +1,4 @@
-package com.example.pokerproject;
-
-import com.example.pokerproject.Rank;
-import com.example.pokerproject.Suit;
+package Models;
 
 public class Card {
     // 1. מחקנו את ה-final

@@ -1,4 +1,4 @@
-package com.example.pokerproject;
+package Activities;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,6 +13,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import Models.GameRoom;
+import com.example.pokerproject.R;
+import Adapters.RoomAdapter;
+import Models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;

@@ -1,9 +1,12 @@
-package com.example.pokerproject;
+package Helpers;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+
+import Models.Card;
+import Models.Suit;
 
 public class HandEvaluator {
 
