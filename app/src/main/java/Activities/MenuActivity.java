@@ -94,9 +94,14 @@ public class MenuActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         if(view.getId() == R.id.btnPlayOnline)
         {
-            Intent intent = new Intent(MenuActivity.this, LobbyActivity.class);
-            startActivity(intent);
-            finish();
+            if(isNetworkAvailable()) {
+                Intent intent = new Intent(MenuActivity.this, LobbyActivity.class);
+                startActivity(intent);
+                finish();
+            }
+            else{
+                Toast.makeText(MenuActivity.this, "No internet connection! Please check your network.", Toast.LENGTH_LONG).show();
+            }
         }
         else if(view.getId() == R.id.btnPlayOffline)
         {

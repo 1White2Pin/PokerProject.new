@@ -1,5 +1,8 @@
 package Activities;
 
+import static androidx.appcompat.app.AlertDialog.*;
+
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -11,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -119,6 +123,46 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (snapshot.exists()) {
                     GameRoom room = snapshot.getValue(GameRoom.class);
+                    if (room.getGameState().equals("GameOver")) {
+                        int currentChips = 0;
+                        if (room.getPlayers() != null) {
+                            for (User u : room.getPlayers()) {
+                                if (u.getUid().equals(myUid)) {
+                                    currentChips = u.getChips();
+                                    break; // מצאנו אותך, אפשר לעצור את הלולאה
+                                }
+                            }
+                        }
+
+                        // חישוב הרווח: מה שיש לי עכשיו פחות מה שהיה כשהחדר נפתח
+                        int totalProfit = currentChips - room.getStartingChips();
+
+                        // הכנת הודעה אישית מותאמת
+                        String message;
+                        if (totalProfit > 0) {
+                            message = "You won ₪" + totalProfit + " in this room! Great job!";
+                        } else if (totalProfit < 0) {
+                            message = "You lost ₪" + Math.abs(totalProfit) + ". Better luck next time!";
+                        } else {
+                            message = "You broke even! No profit, no loss.";
+                        }
+
+                        // בניית חלון הדיאלוג
+                        new AlertDialog.Builder(OnlineActivity.this)
+                                .setTitle("Game Over")
+                                .setMessage(message)
+                                .setCancelable(false) // נועל את החלון
+                                .setPositiveButton("Back to lobby", (dialog, which) -> {
+                                    // הקוד הזה ירוץ *רק* אחרי שהשחקן ילחץ על הכפתור
+                                    Intent intent = new Intent(OnlineActivity.this, LobbyActivity.class);
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                    startActivity(intent);
+                                    finish();
+                                })
+                                .show(); // מציג את החלון!
+
+                        return; // עוצרים כאן כדי לא לנסות לצייר את הקלפים
+                    }
 
                     // מוודאים שהחדר והשחקנים תקינים כדי למנוע קריסות (NullPointer)
                     if (room != null && room.getPlayers() != null) {
@@ -527,9 +571,25 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                     GameRoom currentRoomState = task.getResult().getValue(GameRoom.class);
                     // מוודאים שעוד לא התחילו משחק בלעדינו
                     if (currentRoomState != null && "Showdown".equals(currentRoomState.getGameState())) {
-                        resetRoomForNextRound(currentRoomState);
-                        currentRoomState.setWinnerName("");
-                        roomRef.setValue(currentRoomState); // שולחים לענן חדר נקי ומוכן לפלופ הבא
+                        int alivePlayers =0;
+                        if(currentRoomState.getPlayers()!=null)
+                        {
+                            for(User p : currentRoomState.getPlayers())
+                            {
+                                if(p.getChips() > 0) alivePlayers++;
+
+                            }
+                        }
+                        if(alivePlayers > 1) {
+                            resetRoomForNextRound(currentRoomState);
+                            currentRoomState.setWinnerName("");
+                            roomRef.setValue(currentRoomState); // שולחים לענן חדר נקי ומוכן לפלופ הבא
+                        }
+                        else{
+                            currentRoomState.setGameState("GameOver");
+                            currentRoomState.setGameActive(false);
+                            roomRef.setValue(currentRoomState);
+                        }
                     }
                 }
             });

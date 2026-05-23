@@ -8,11 +8,12 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
-import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
@@ -28,120 +29,162 @@ import Models.User;
 
 public class PokerGameView extends View {
 
-    // משתנים לשמירת נתוני המשחק והשחקן המקומי
     private GameRoom currentRoom;
     private String uid;
 
-    // מכחולים (Paint) - מגדירים צבעים, עובי קווים וסגנונות ציור
-    private Paint tablePaint;
-    private Paint borderPaint;
-    private Paint cardPaint;
-    private Paint textBgPaint;
-    private Paint textPaint;
+    // --- מכחולים (Paints) ---
+    private Paint tablePaint, tableInnerPaint, borderPaint, borderInnerPaint, feltLinePaint;
+    private Paint cardPaint, shadowPaint;
+    private Paint labelBgPaint, labelBorderPaint, highlightBorderPaint, namePaint, chipsPaint;
+    private Paint avatarBgPaint, avatarBorderPaint, avatarTextPaint;
+    private Paint potBgPaint, potTextPaint, potLabelPaint, potBorderPaint;
+    private Paint overlayPaint, winnerPanelPaint, winnerTitlePaint, winnerNamePaint, winnerSubPaint;
 
-    // מכחולים לתצוגת הניצחון (Showdown)
-    private Paint overlayPaint;
-    private Paint winnerTextPaint;
-
-    // מידות המסך והקלפים
+    // --- מידות וגבולות ---
     private int screenW, screenH;
-    private int cardW, cardH;
-    private int smallCardW, smallCardH;
-    private RectF tableRect; // המלבן שתוחם את שולחן הפוקר האליפטי
+    private float centerX, centerY;
+    private int cardW, cardH, smallCardW, smallCardH;
+    private RectF tableRect, tableInnerRect;
 
-    // מטמון (Cache) לשמירת תמונות הקלפים בזיכרון כדי למנוע טעינה חוזרת ואיטיות
+    // --- זיכרון מטמון לתמונות ---
     private HashMap<String, Bitmap> cardCache;
-    private Bitmap smallBackBitmap;
-    private Bitmap normalBackBitmap;
+    private Bitmap smallBackBitmap, normalBackBitmap;
 
-    // משתנים לניהול אנימציית היפוך הקלפים (Flop, Turn, River)
-    private boolean isFlipping = false;
-    private float flipScale = 1f;
-    private int previousCommunityCount = 0;
-    private int animatingStartIndex = 0;
+    // --- משתני אנימציה ---
+    private boolean isFlipping = false, isDealing = false, isNewRound = false;
+    private float flipScale = 1f, dealProgress = 1f;
+    private int previousCommunityCount = 0, animatingStartIndex = 0;
 
-    // משתנים לניהול אנימציית חלוקת הקלפים (Dealing) בתחילת סיבוב
-    private boolean isDealing = false;
-    private float dealProgress = 1f;
-    private boolean isNewRound = false;
+    // --- צבעים ---
+    private static final String COLOR_FELT_DARK   = "#0D3B1F";
+    private static final String COLOR_FELT_LIGHT  = "#1E7A3D";
+    private static final String COLOR_GOLD        = "#D4A843";
+    private static final String COLOR_CHIP_BG     = "#1A2E1A";
 
-    // בנאי ראשון - נוצר כשיוצרים את התצוגה דרך הקוד
     public PokerGameView(Context context) {
         super(context);
         init();
     }
 
-    // בנאי שני - נוצר כשמערכת האנדרואיד קוראת את התצוגה מתוך קובץ ה-XML
     public PokerGameView(Context context, AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    // פעולת אתחול: מכינה את כל ה"מכחולים" וההגדרות הגרפיות הראשוניות
+    // 1. אתחול ראשוני של כל המכחולים (קורה פעם אחת בלבד!)
     public void init() {
         cardCache = new HashMap<>();
 
-        // מכחול לשולחן הירוק
+        // שולחן וצללים
         tablePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        // מכחול למסגרת העץ של השולחן
+        tableInnerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        borderPaint.setColor(Color.parseColor("#5C3A21"));
         borderPaint.setStyle(Paint.Style.STROKE);
-        borderPaint.setStrokeWidth(30f);
+        borderPaint.setStrokeWidth(40f);
 
-        // מכחול לציור הקלפים (משמש גם לקביעת שקיפות לקלפים של מי שפרש)
+        borderInnerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borderInnerPaint.setStyle(Paint.Style.STROKE);
+        borderInnerPaint.setStrokeWidth(3f);
+        borderInnerPaint.setColor(Color.parseColor(COLOR_GOLD));
+
+        feltLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        feltLinePaint.setStyle(Paint.Style.STROKE);
+        feltLinePaint.setColor(Color.parseColor(COLOR_FELT_LIGHT));
+        feltLinePaint.setAlpha(40);
+
         cardPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shadowPaint.setColor(Color.parseColor("#55000000"));
 
-        // מכחול לרקע השחור-שקוף מאחורי שמות השחקנים
-        textBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textBgPaint.setColor(Color.parseColor("#99000000"));
+        // תוויות ואווטרים
+        labelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        labelBgPaint.setColor(Color.parseColor("#CC0A0A0A"));
+        labelBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        labelBorderPaint.setStyle(Paint.Style.STROKE);
+        labelBorderPaint.setColor(Color.parseColor("#55D4A843"));
 
-        // מכחול לטקסט של שמות השחקנים והצ'יפים
-        textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(Color.WHITE);
-        textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(35f);
+        highlightBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        highlightBorderPaint.setStyle(Paint.Style.STROKE);
+        highlightBorderPaint.setColor(Color.parseColor(COLOR_GOLD));
+        highlightBorderPaint.setStrokeWidth(2f);
 
-        // אתחול מכחולי הניצחון (מסך כהה וטקסט זהב)
+        namePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        namePaint.setColor(Color.WHITE);
+        namePaint.setTextAlign(Paint.Align.CENTER);
+        namePaint.setTextSize(24f);
+
+        chipsPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        chipsPaint.setColor(Color.parseColor("#F0C96A"));
+        chipsPaint.setTextAlign(Paint.Align.CENTER);
+        chipsPaint.setTextSize(20f);
+
+        avatarBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        avatarBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        avatarBorderPaint.setStyle(Paint.Style.STROKE);
+        avatarBorderPaint.setStrokeWidth(2.5f);
+
+        avatarTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        avatarTextPaint.setColor(Color.WHITE);
+        avatarTextPaint.setTextAlign(Paint.Align.CENTER);
+        avatarTextPaint.setFakeBoldText(true);
+
+        // קופה (Pot)
+        potBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        potBgPaint.setColor(Color.parseColor(COLOR_CHIP_BG));
+        potBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        potBorderPaint.setStyle(Paint.Style.STROKE);
+        potBorderPaint.setColor(Color.parseColor(COLOR_GOLD));
+        potTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        potTextPaint.setColor(Color.parseColor("#F0C96A"));
+        potTextPaint.setTextAlign(Paint.Align.CENTER);
+        potTextPaint.setTextSize(30f);
+        potLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        potLabelPaint.setColor(Color.parseColor("#AAFFFFFF"));
+        potLabelPaint.setTextAlign(Paint.Align.CENTER);
+        potLabelPaint.setTextSize(20f);
+
+        // מסך ניצחון
         overlayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        overlayPaint.setColor(Color.parseColor("#B3000000"));
-
-        winnerTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        winnerTextPaint.setColor(Color.parseColor("#FFD700"));
-        winnerTextPaint.setTextSize(100f);
-        winnerTextPaint.setTextAlign(Paint.Align.CENTER);
-        winnerTextPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        winnerTextPaint.setShadowLayer(15f, 0f, 5f, Color.BLACK);
+        overlayPaint.setColor(Color.parseColor("#CC000000"));
+        winnerPanelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        winnerTitlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        winnerTitlePaint.setColor(Color.parseColor(COLOR_GOLD));
+        winnerTitlePaint.setTextSize(38f);
+        winnerTitlePaint.setTextAlign(Paint.Align.CENTER);
+        winnerNamePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        winnerNamePaint.setColor(Color.WHITE);
+        winnerNamePaint.setTextSize(70f);
+        winnerNamePaint.setTextAlign(Paint.Align.CENTER);
+        winnerSubPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        winnerSubPaint.setColor(Color.parseColor("#AAFFFFFF"));
+        winnerSubPaint.setTextSize(26f);
+        winnerSubPaint.setTextAlign(Paint.Align.CENTER);
     }
 
-    // מופעלת כשהמסך נטען או משנה גודל - כאן מחושבות המידות המדויקות
+    // 2. חישוב מידות (קורה כשהמסך מסתובב או נטען לראשונה)
     @Override
     public void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        screenW = w; // רוחב המסך
-        screenH = h; // גובה המסך
+        screenW = w; screenH = h;
+        centerX = w / 2f; centerY = h / 2f;
 
-        // חישוב גודל הקלפים באופן יחסי לגובה המסך
-        cardH = (int)(screenH * 0.32);
-        cardW = (int)(cardH * 0.72);
-        smallCardH = (int)(cardH * 0.70);
-        smallCardW = (int)(smallCardH * 0.72);
+        cardH = (int) (screenH * 0.28); cardW = (int) (cardH * 0.72);
+        smallCardH = (int) (cardH * 0.65); smallCardW = (int) (smallCardH * 0.72);
 
-        // הגדרת גבולות שולחן הפוקר (משאיר שוליים של 50 פיקסלים)
-        tableRect = new RectF(50, 50, screenW - 50, screenH - 50);
+        int marginH = (int) (screenH * 0.05); int marginW = (int) (screenW * 0.04);
+        tableRect = new RectF(marginW, marginH, screenW - marginW, screenH - marginH);
+        tableInnerRect = new RectF(tableRect.left + 18f, tableRect.top + 18f, tableRect.right - 18f, tableRect.bottom - 18f);
 
-        // יצירת אפקט מעבר צבעים (Gradient) שנותן לשולחן מראה של תלת-ממד
-        RadialGradient gradient = new RadialGradient(
-                screenW / 2f, screenH / 2f,
-                screenW / 1.5f,
-                Color.parseColor("#2E7D32"),
-                Color.parseColor("#124015"),
-                Shader.TileMode.CLAMP
-        );
-        tablePaint.setShader(gradient);
+        // הגדרת גרדיאנטים (מעברי צבע) לשולחן
+        tablePaint.setShader(new RadialGradient(centerX, centerY, screenW * 0.65f,
+                new int[]{Color.parseColor(COLOR_FELT_LIGHT), Color.parseColor(COLOR_FELT_DARK)},
+                new float[]{0f, 1f}, Shader.TileMode.CLAMP));
 
-        // טעינה ושינוי גודל של התמונה של גב הקלף, כדי לא לעשות את זה בכל פריים מחדש
+        borderPaint.setShader(new LinearGradient(tableRect.left, tableRect.top, tableRect.right, tableRect.bottom,
+                new int[]{Color.parseColor("#8B5A2B"), Color.parseColor("#3B2005")},
+                new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+
+        // טעינת גב הקלף
         int backResId = getResources().getIdentifier("card_back", "drawable", getContext().getPackageName());
         if (backResId != 0) {
             Bitmap originalBack = BitmapFactory.decodeResource(getResources(), backResId);
@@ -150,254 +193,230 @@ public class PokerGameView extends View {
         }
     }
 
-    // לב המערכת: הפעולה שאחראית לצייר בפועל את כל האלמנטים על המסך (מופעלת בכל פעם שיש invalidate)
+    // 3. הציור בפועל - מסודר ונקי!
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
+        canvas.drawColor(Color.parseColor("#0A0A0A")); // רקע שחור
 
-        // 1. צביעת הרקע שמחוץ לשולחן בשחור
-        canvas.drawColor(Color.BLACK);
+        drawTable(canvas);
 
-        // 2. ציור שולחן הפוקר והמסגרת שלו
-        if (tableRect != null) {
-            canvas.drawOval(tableRect, tablePaint);
-            canvas.drawOval(tableRect, borderPaint);
+        if (currentRoom == null) return;
+
+        drawCommunityCards(canvas);
+        drawPot(canvas);
+        drawAllPlayers(canvas);
+        drawShowdown(canvas);
+    }
+
+    // --- פונקציות הציור המופרדות ---
+
+    private void drawTable(Canvas canvas) {
+        if (tableRect == null) return;
+        canvas.drawOval(tableRect, borderPaint);
+        canvas.drawOval(tableInnerRect, tablePaint);
+        canvas.drawOval(tableInnerRect, borderInnerPaint);
+
+        // ציור קווי הלבד
+        canvas.save();
+        Path ovalPath = new Path();
+        ovalPath.addOval(tableInnerRect, Path.Direction.CW);
+        canvas.clipPath(ovalPath);
+        for (int r = 80; r < screenW; r += 120) canvas.drawCircle(centerX, centerY, r, feltLinePaint);
+        canvas.restore();
+    }
+
+    private void drawCommunityCards(Canvas canvas) {
+        if (currentRoom.getCommunityCards() == null || currentRoom.getCommunityCards().isEmpty()) return;
+
+        ArrayList<Card> cards = currentRoom.getCommunityCards();
+        float totalWidth = cards.size() * cardW + (cards.size() - 1) * 12f;
+        float startX = (screenW - totalWidth) / 2f;
+        float startY = centerY - cardH / 2f - 50;
+
+        for (int i = 0; i < cards.size(); i++) {
+            Bitmap frontBmp = getCachedImage(cards.get(i).getImageResourceName(), cardW, cardH);
+            drawCardShadow(canvas, startX, startY, cardW, cardH);
+
+            if (isFlipping && i >= animatingStartIndex) {
+                canvas.save();
+                canvas.scale(Math.abs(flipScale), 1f, startX + cardW / 2f, startY + cardH / 2f);
+                canvas.drawBitmap((flipScale > 0) ? normalBackBitmap : frontBmp, startX, startY, cardPaint);
+                canvas.restore();
+            } else if (frontBmp != null) {
+                canvas.drawBitmap(frontBmp, startX, startY, cardPaint);
+            }
+            startX += cardW + 12f;
         }
+    }
 
-        if (currentRoom == null) return; // הגנה: אם אין נתוני חדר, לא ממשיכים
+    private void drawPot(Canvas canvas) {
+        if (currentRoom.getPot() <= 0) return;
+        float cy = centerY + cardH / 2f - 20;
+        RectF potRect = new RectF(centerX - 100f, cy, centerX + 100f, cy + 55f);
 
-        // חישוב נקודת האמצע של המסך (ה"חבילה" שממנה מחלקים את הקלפים)
-        float deckX = screenW / 2f - cardW / 2f;
-        float deckY = screenH / 2f - cardH / 2f;
+        canvas.drawRoundRect(potRect, 28f, 28f, potBgPaint);
+        canvas.drawRoundRect(potRect, 28f, 28f, potBorderPaint);
+        canvas.drawText("POT", centerX, cy + 18f, potLabelPaint);
+        canvas.drawText("₪" + currentRoom.getPot(), centerX, cy + 44f, potTextPaint);
+    }
 
-        // 3. ציור קלפי הקהילה (הקלפים שבאמצע השולחן)
-        if (currentRoom.getCommunityCards() != null && !currentRoom.getCommunityCards().isEmpty()) {
-            ArrayList<Card> communityCards = currentRoom.getCommunityCards();
-            int space = 15;
-            int totalWidth = communityCards.size() * cardW + (communityCards.size() - 1) * space;
-            float startX = (screenW - totalWidth) / 2f;
-            float startY = (screenH - cardH) / 2f - 30;
+    private void drawAllPlayers(Canvas canvas) {
+        float deckX = centerX - cardW / 2f;
+        float deckY = centerY - cardH / 2f;
+        int opponentIndex = 0;
 
-            for (int i = 0; i < communityCards.size(); i++) {
-                Card card = communityCards.get(i);
-                Bitmap frontBitmap = getCachedImage(card.getImageResourceName(), cardW, cardH);
+        for (User player : currentRoom.getPlayers()) {
+            boolean isMe = player.getUid().equals(uid);
+            boolean isFolded = "Folded".equals(player.getStatus());
+            cardPaint.setAlpha(isFolded ? 90 : 255);
 
-                // טיפול באנימציית ההיפוך (אם הקלף כרגע מונפש)
-                if (isFlipping && i >= animatingStartIndex) {
-                    canvas.save(); // שומר את מצב הקנבס לפני השינוי
-                    float centerX = startX + cardW / 2f;
-                    float centerY = startY + cardH / 2f;
-                    float currentScaleX = Math.abs(flipScale);
-                    canvas.scale(currentScaleX, 1f, centerX, centerY); // כיווץ הקלף כדי ליצור אשליית היפוך
+            if (isMe) {
+                // ציור הקלפים שלי
+                int handSize = (player.getHand() != null) ? player.getHand().size() : 0;
+                float overlap = cardW * 0.45f;
+                float startX = (screenW - (cardW + (handSize - 1) * overlap)) / 2f;
+                float targetY = screenH - cardH - 30;
 
-                    if (flipScale > 0) {
-                        // חצי ראשון של האנימציה: רואים את גב הקלף
-                        if (normalBackBitmap != null) canvas.drawBitmap(normalBackBitmap, startX, startY, cardPaint);
-                    } else {
-                        // חצי שני של האנימציה: רואים את פני הקלף
-                        if (frontBitmap != null) canvas.drawBitmap(frontBitmap, startX, startY, cardPaint);
-                    }
-                    canvas.restore(); // מחזיר את הקנבס למצב הרגיל כדי לא להשפיע על שאר האלמנטים
-                } else {
-                    // ציור רגיל של הקלף אם אין אנימציה
-                    if (frontBitmap != null) canvas.drawBitmap(frontBitmap, startX, startY, cardPaint);
+                for (int k = 0; k < handSize; k++) {
+                    Bitmap bmp = getCachedImage(player.getHand().get(k).getImageResourceName(), cardW, cardH);
+                    float curX = deckX + (startX - deckX) * dealProgress;
+                    float curY = deckY + (targetY - deckY) * dealProgress;
+                    drawCardShadow(canvas, curX, curY, cardW, cardH);
+                    if (bmp != null) canvas.drawBitmap(bmp, curX, curY, cardPaint);
+                    startX += overlap;
                 }
-                startX += cardW + space; // מעבר למיקום של הקלף הבא
-            }
-        }
-
-        // חלוקת השחקנים ל"אני" ול"שאר השחקנים"
-        User me = null;
-        ArrayList<User> opponents = new ArrayList<>();
-        if (currentRoom.getPlayers() != null) {
-            for (User player : currentRoom.getPlayers()) {
-                if (player.getUid() != null && player.getUid().equals(uid)) me = player;
-                else opponents.add(player);
-            }
-        }
-
-        // 4. ציור הקלפים של השחקן המקומי (היד שלך)
-        if (me != null && me.getHand() != null && !me.getHand().isEmpty()) {
-            // אם השחקן פרש, הקלפים יהפכו לחצי שקופים
-            if ("Folded".equals(me.getStatus())) cardPaint.setAlpha(100);
-            else cardPaint.setAlpha(255);
-
-            int myHandSize = me.getHand().size();
-            float overlap = cardW * 0.5f; // חפיפה בין הקלפים
-            float totalWidth = cardW + (myHandSize - 1) * overlap;
-            float targetX = (screenW - totalWidth) / 2f; // מיקום סופי בציר ה-X
-            float targetY = screenH - cardH - 20;        // מיקום סופי בציר ה-Y (בתחתית המסך)
-
-            for (Card card : me.getHand()) {
-                Bitmap bitmap = getCachedImage(card.getImageResourceName(), cardW, cardH);
-
-                // חישוב המיקום הנוכחי של הקלף לפי התקדמות אנימציית החלוקה (dealProgress)
-                float currentX = deckX + (targetX - deckX) * dealProgress;
-                float currentY = deckY + (targetY - deckY) * dealProgress;
-
-                if (bitmap != null) canvas.drawBitmap(bitmap, currentX, currentY, cardPaint);
-                targetX += overlap;
-            }
-            cardPaint.setAlpha(255); // החזרת השקיפות למצב רגיל
-
-            // ציור התווית עם השם והכסף של השחקן
-            drawPlayerLabel(canvas, me.getNickname(), me.getChips(), screenW / 2f, targetY - 10);
-        }
-
-        // 5. ציור הקלפים של היריבים (קצוות השולחן)
-        if (!opponents.isEmpty() && smallBackBitmap != null) {
-            for (int i = 0; i < opponents.size(); i++) {
-                User opponent = opponents.get(i);
-                if (opponent.getHand() == null || opponent.getHand().isEmpty()) continue;
-
-                if ("Folded".equals(opponent.getStatus())) cardPaint.setAlpha(100);
-                else cardPaint.setAlpha(255);
-
-                int handSize = opponent.getHand().size();
+                drawPlayerLabel(canvas, player, centerX, targetY - 10, true);
+            } else {
+                // ציור הקלפים של היריבים (קצוות השולחן)
+                int handSize = (player.getHand() != null) ? player.getHand().size() : 0;
                 float overlap = smallCardW * 0.4f;
                 float totalW = smallCardW + (handSize - 1) * overlap;
                 float targetX = 0, targetY = 0;
 
-                // קביעת מיקומים שונים לכל יריב (שמאל, למעלה, ימין)
-                if (i == 0) {
-                    targetX = 60; targetY = (screenH - smallCardH) / 2f - 30;
-                } else if (i == 1) {
-                    targetX = (screenW - totalW) / 2f; targetY = 40;
-                } else if (i == 2) {
-                    targetX = screenW - totalW - 60; targetY = (screenH - smallCardH) / 2f - 30;
+                // מיקום היריב לפי האינדקס שלו
+                switch (opponentIndex) {
+                    case 0: targetX = screenW * 0.07f; targetY = centerY - smallCardH * 0.8f; break; // שמאל
+                    case 1: targetX = centerX - totalW / 2f; targetY = screenH * 0.10f; break;       // למעלה
+                    case 2: targetX = screenW * 0.93f - totalW; targetY = centerY - smallCardH * 0.8f; break; // ימין
                 }
 
-                float tempTargetX = targetX;
+                float tempX = targetX;
                 for (int k = 0; k < handSize; k++) {
-                    // חישוב מיקום נוכחי לאנימציית החלוקה מהאמצע למיקום היריב
-                    float currentX = deckX + (tempTargetX - deckX) * dealProgress;
-                    float currentY = deckY + (targetY - deckY) * dealProgress;
-
-                    canvas.drawBitmap(smallBackBitmap, currentX, currentY, cardPaint);
-                    tempTargetX += overlap;
+                    float curX = deckX + (tempX - deckX) * dealProgress;
+                    float curY = deckY + (targetY - deckY) * dealProgress;
+                    drawCardShadow(canvas, curX, curY, smallCardW, smallCardH);
+                    if (smallBackBitmap != null) canvas.drawBitmap(smallBackBitmap, curX, curY, cardPaint);
+                    tempX += overlap;
                 }
-                cardPaint.setAlpha(255);
-                drawPlayerLabel(canvas, opponent.getNickname(), opponent.getChips(), targetX + totalW / 2f, targetY + smallCardH + 40);
+                drawPlayerLabel(canvas, player, targetX + totalW / 2f, targetY + smallCardH + 8, false);
+                opponentIndex++;
             }
         }
+        cardPaint.setAlpha(255);
+    }
 
-        // 6. ציור מסך הניצחון (Showdown) - מצויר אחרון כדי שיופיע מעל הכל
-        if ("Showdown".equalsIgnoreCase(currentRoom.getGameState()) && currentRoom.getWinnerName() != null && !currentRoom.getWinnerName().isEmpty()) {
-            canvas.drawRect(0, 0, screenW, screenH, overlayPaint); // החשכת המסך
-            canvas.drawText(currentRoom.getWinnerName(), screenW / 2f, screenH / 2f + 30, winnerTextPaint); // שם המנצח באמצע
+    private void drawPlayerLabel(Canvas canvas, User user, float cx, float topY, boolean isMe) {
+        String name = (user.getNickname() != null) ? user.getNickname() : "Player";
+        if (name.length() > 10) name = name.substring(0, 9) + "…";
+        boolean folded = "Folded".equals(user.getStatus());
+
+        RectF panelRect = new RectF(cx - 100f, topY, cx + 100f, topY + 56f);
+        canvas.drawRoundRect(panelRect, 30f, 30f, labelBgPaint);
+        canvas.drawRoundRect(panelRect, 30f, 30f, isMe ? highlightBorderPaint : labelBorderPaint);
+
+        // ציור אווטר עגול
+        float avatarCX = panelRect.left + 30f;
+        avatarBgPaint.setColor(isMe ? Color.parseColor("#2E5C2E") : Color.parseColor("#1A3A4A"));
+        avatarBorderPaint.setColor(isMe ? Color.parseColor(COLOR_GOLD) : Color.parseColor(folded ? "#555555" : "#4488CC"));
+
+        canvas.drawCircle(avatarCX + 2f, panelRect.centerY() + 3f, 22f, shadowPaint);
+        canvas.drawCircle(avatarCX, panelRect.centerY(), 22f, avatarBgPaint);
+        canvas.drawCircle(avatarCX, panelRect.centerY(), 22f, avatarBorderPaint);
+        canvas.drawText(name.substring(0,1).toUpperCase(), avatarCX, panelRect.centerY() + 8f, avatarTextPaint);
+
+        // טקסט
+        namePaint.setAlpha(folded ? 140 : 255);
+        canvas.drawText(name, cx + 10f, topY + 26f, namePaint);
+        canvas.drawText("₪" + user.getChips(), cx + 10f, topY + 46f, chipsPaint);
+
+        if (folded) {
+            namePaint.setAlpha(150);
+            canvas.drawText("FOLDED", cx, topY + 75f, namePaint);
         }
     }
 
-    // פונקציית עזר: מציירת את הרקע והטקסט של תוויות השחקנים (שם וכמות צ'יפים)
-    private void drawPlayerLabel(Canvas canvas, String name, int chips, float centerX, float bottomY) {
-        String text = (name != null ? name : "Player") + " | ₪" + chips;
-        RectF bgRect = new RectF(centerX - 120, bottomY - 45, centerX + 120, bottomY + 15);
-        canvas.drawRoundRect(bgRect, 15, 15, textBgPaint);
-        canvas.drawText(text, centerX, bottomY, textPaint);
+    private void drawShowdown(Canvas canvas) {
+        if (!"Showdown".equalsIgnoreCase(currentRoom.getGameState()) || currentRoom.getWinnerName() == null) return;
+
+        canvas.drawRect(0, 0, screenW, screenH, overlayPaint);
+        RectF panel = new RectF(centerX - 250f, centerY - 130f, centerX + 250f, centerY + 130f);
+
+        winnerPanelPaint.setColor(Color.parseColor("#EE1A1A1A"));
+        canvas.drawRoundRect(panel, 24f, 24f, winnerPanelPaint);
+        canvas.drawRoundRect(panel, 24f, 24f, highlightBorderPaint);
+
+        canvas.drawText("🏆 WINNER 🏆", centerX, centerY - 65f, winnerTitlePaint);
+        canvas.drawText(currentRoom.getWinnerName(), centerX, centerY + 25f, winnerNamePaint);
+        canvas.drawText("Congratulations!", centerX, centerY + 80f, winnerSubPaint);
     }
 
-    // פונקציית עזר: מנהלת את טעינת תמונות הקלפים ושומרת אותן בזיכרון (Cache) כדי לשפר ביצועים
-    private Bitmap getCachedImage(String cardName, int reqWidth, int reqHeight) {
-        String key = cardName + "_" + reqWidth;
-        if (cardCache.containsKey(key)) return cardCache.get(key); // מחזיר מהזיכרון אם קיים
+    private void drawCardShadow(Canvas canvas, float x, float y, int w, int h) {
+        canvas.drawRoundRect(new RectF(x + 5, y + 7, x + w + 5, y + h + 7), 6f, 6f, shadowPaint);
+    }
 
-        int resID = getResources().getIdentifier(cardName, "drawable", getContext().getPackageName());
-        if (resID != 0) {
-            Bitmap originalBitmap = BitmapFactory.decodeResource(getResources(), resID);
-            Bitmap scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, reqWidth, reqHeight, true);
-            cardCache.put(key, scaledBitmap); // שומר בזיכרון לשימוש עתידי
-            return scaledBitmap;
+    private Bitmap getCachedImage(String name, int w, int h) {
+        String key = name + "_" + w;
+        if (cardCache.containsKey(key)) return cardCache.get(key);
+        int id = getResources().getIdentifier(name, "drawable", getContext().getPackageName());
+        if (id != 0) {
+            Bitmap bmp = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), id), w, h, true);
+            cardCache.put(key, bmp);
+            return bmp;
         }
         return null;
     }
 
-    // הפעולה שקוראים לה מה-Activity כדי לעדכן את התצוגה בנתונים החדשים מהשרת/מהמשחק
+    // --- אנימציות --- (נשארו כמעט אותו דבר כי הן עבדו מצוין)
     public void updateGame(GameRoom room, String uid) {
-        this.currentRoom = room;
-        this.uid = uid;
+        this.currentRoom = room; this.uid = uid;
+        int commCount = (room.getCommunityCards() != null) ? room.getCommunityCards().size() : 0;
 
-        int currentCommunityCount = (room.getCommunityCards() != null) ? room.getCommunityCards().size() : 0;
-
-        // מזהה אם התחיל סיבוב חדש (PreFlop) ומפעיל אנימציית חלוקת קלפים
         if (room.getGameState().equalsIgnoreCase("PreFlop") && !isNewRound) {
-            isNewRound = true;
-            startDealAnimation();
-        }
-        else if (!room.getGameState().equalsIgnoreCase("PreFlop")) {
+            isNewRound = true; startDealAnimation();
+        } else if (!room.getGameState().equalsIgnoreCase("PreFlop")) {
             isNewRound = false;
         }
 
-        // מזהה אם נוספו קלפי קהילה חדשים ומפעיל אנימציית היפוך
-        if (currentCommunityCount > previousCommunityCount) {
-            animatingStartIndex = previousCommunityCount;
-            startFlipAnimation();
-        } else if (currentCommunityCount == 0) {
-            previousCommunityCount = 0;
-            invalidate(); // קורא מחדש לפעולת onDraw לעדכון מיידי
+        if (commCount > previousCommunityCount) {
+            animatingStartIndex = previousCommunityCount; startFlipAnimation();
         } else {
-            invalidate(); // עדכון רגיל ללא אנימציות
+            invalidate();
         }
-
-        previousCommunityCount = currentCommunityCount;
+        previousCommunityCount = commCount;
     }
 
-    // מפעילה את האנימציה שבה הקלפים עפים ממרכז המסך לשחקנים (משנה את dealProgress מ-0 ל-1)
     private void startDealAnimation() {
-        if (isDealing) return; // מונע הפעלה כפולה
-        isDealing = true;
-        dealProgress = 0f;
-
-        ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(500); // האנימציה תימשך חצי שנייה
-        animator.setInterpolator(new DecelerateInterpolator()); // גורם לאנימציה להאט לקראת הסוף
-
-        // מעדכן את המסך בכל פריים של האנימציה (כאן תוקנה השגיאה addUpdaפteListener)
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                dealProgress = (float) animation.getAnimatedValue();
-                invalidate(); // אומר לאנדרואיד לצייר מחדש
-            }
+        if (isDealing) return;
+        isDealing = true; dealProgress = 0f;
+        ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+        anim.setDuration(500); anim.setInterpolator(new DecelerateInterpolator());
+        anim.addUpdateListener(a -> { dealProgress = (float) a.getAnimatedValue(); invalidate(); });
+        anim.addListener(new AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(Animator a) { isDealing = false; dealProgress = 1f; invalidate(); }
         });
-
-        // פעולות סיום האנימציה
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                isDealing = false;
-                dealProgress = 1f;
-                invalidate();
-            }
-        });
-
-        animator.start();
+        anim.start();
     }
 
-    // מפעילה את האנימציה של היפוך קלפי הקהילה (משנה את ה-scale מ-1 למינוס 1)
     private void startFlipAnimation() {
         if (isFlipping) return;
         isFlipping = true;
-
-        ValueAnimator animator = ValueAnimator.ofFloat(1f, -1f);
-        animator.setDuration(500);
-
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                flipScale = (float) animation.getAnimatedValue();
-                invalidate();
-            }
+        ValueAnimator anim = ValueAnimator.ofFloat(1f, -1f);
+        anim.setDuration(500);
+        anim.addUpdateListener(a -> { flipScale = (float) a.getAnimatedValue(); invalidate(); });
+        anim.addListener(new AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(Animator a) { isFlipping = false; flipScale = -1f; invalidate(); }
         });
-
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                isFlipping = false;
-                flipScale = -1f; // סיום ההיפוך - הקלף מוצג פתוח
-                invalidate();
-            }
-        });
-
-        animator.start();
+        anim.start();
     }
 }
