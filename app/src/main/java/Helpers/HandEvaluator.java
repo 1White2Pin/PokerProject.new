@@ -8,7 +8,6 @@ import java.util.List;
 import Models.Card;
 import Models.Suit;
 
-// מחלקה שאחראית להעריך את החוזק של הידיים בפוקר ולתת להן ציון מספרי
 public class HandEvaluator {
 
     // הפונקציה הראשית שמקבלת את כל 7 הקלפים (2 של השחקן + 5 מהשולחן)

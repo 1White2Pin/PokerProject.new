@@ -30,7 +30,6 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 
-// המחלקה יורשת מ-ValueEventListener כדי להאזין בזמן אמת לשינויים בחדר (מי נכנס, מי יצא, מתי מתחילים)
 public class WaitingActivity extends AppCompatActivity implements View.OnClickListener, ValueEventListener {
 
     // רכיבי ממשק המשתמש

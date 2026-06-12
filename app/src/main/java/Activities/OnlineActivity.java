@@ -1,7 +1,5 @@
 package Activities;
 
-import static androidx.appcompat.app.AlertDialog.*;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -41,18 +39,18 @@ import java.util.HashMap;
 
 public class OnlineActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener {
 
-    // רכיבי התצוגה של המשחק
+    // --- רכיבי התצוגה (UI) ---
     PokerGameView pokerGameView; // הקנבס הירוק שמצייר את הקלפים והשולחן
     Button btnFold, btnCheck, btnRaise;
     TextView tvPotSize;
 
-    // משתני חיבור לפיירבייס
+    // --- משתני חיבור לפיירבייס ---
     DatabaseReference mDatabase;
     DatabaseReference roomRef;
-    String roomId;
-    String myUid; // המזהה הייחודי שלי כמשחק
+    String roomId; // קוד החדר הנוכחי
+    String myUid;  // המזהה הייחודי של השחקן שמחזיק את הטלפון
 
-    // רכיבי ממשק להעלאת הימור (Raise)
+    // --- רכיבי ממשק להעלאת הימור (Raise) ---
     LinearLayout layoutActionButtons, layoutBetting;
     Button btnCancelBet, btnConfirmBet, btnAllIn;
     SeekBar sbBetAmount;
@@ -70,7 +68,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
             return insets;
         });
 
-        // 1. חיבור לרכיבים בקובץ ה-XML
+        // 1. חיבור המשתנים לרכיבים בקובץ העיצוב (XML)
         btnFold = findViewById(R.id.btnFold);
         btnCheck = findViewById(R.id.btnCheck);
         btnRaise = findViewById(R.id.btnRaise);
@@ -84,7 +82,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         tvBetAmount = findViewById(R.id.tvBetAmount);
         btnAllIn = findViewById(R.id.btnAllIn);
 
-        // הגדרת מאזינים ללחיצות
+        // הגדרת מאזינים ללחיצות על הכפתורים
         btnFold.setOnClickListener(this);
         btnCheck.setOnClickListener(this);
         btnRaise.setOnClickListener(this);
@@ -93,7 +91,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         btnAllIn.setOnClickListener(this);
         sbBetAmount.setOnSeekBarChangeListener(this);
 
-        // 2. קבלת המשתמש הנוכחי מ-Firebase Auth
+        // 2. קבלת המשתמש הנוכחי מ-Firebase Auth כדי לדעת מי אני
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
             myUid = user.getUid();
@@ -104,42 +102,48 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
             roomId = getIntent().getStringExtra("roomId");
         }
 
-        // הגנה: אם אין קוד חדר, חוזרים אחורה כדי למנוע קריסה
+        // הגנה: אם אין קוד חדר משום מה, חוזרים אחורה כדי למנוע קריסה
         if (roomId == null || roomId.isEmpty()) {
             Toast.makeText(this, "Error: No Room ID found!", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
 
-        // 4. חיבור לפיירבייס - יצירת ה"צינור" לחדר הספציפי הזה
+        // 4. חיבור לפיירבייס - יצירת "צינור תקשורת" ישירות לחדר הספציפי שלנו
         mDatabase = FirebaseDatabase.getInstance().getReference();
         roomRef = mDatabase.child("Rooms").child(roomId);
 
         // ====================================================================
-        // הלב של משחק הרשת: האזנה רציפה לכל שינוי שקורה בחדר ב-Firebase
+        // הלב של משחק הרשת: המאזין שקורא שינויים מ-Firebase בזמן אמת
+        // כל פעם שמישהו בחדר עושה מהלך, הפונקציה הזו מופעלת אצל כולם!
         // ====================================================================
         roomRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (snapshot.exists()) {
                     GameRoom room = snapshot.getValue(GameRoom.class);
-                    if (room.getGameState().equals("GameOver")) {
+
+                    if (room == null) return; // הגנה מקריסות במקרה של שגיאת רשת
+
+                    // 🌟 בדיקת סיום משחק (Yoda Condition למניעת קריסות) 🌟
+                    // אם הסטטוס הוא GameOver, המשחק נגמר ואנחנו מחשבים רווחים
+                    if("GameOver".equals(room.getGameState())) {
                         int currentChips = 0;
-                        if (room.getPlayers() != null) {
-                            for (User u : room.getPlayers()) {
-                                if (u.getUid().equals(myUid)) {
-                                    currentChips = u.getChips();
-                                    break; // מצאנו אותך, אפשר לעצור את הלולאה
+                        if(room.getPlayers() != null) {
+                            for(User u : room.getPlayers()) {
+                                if(u.getUid().equals(myUid)) {
+                                    currentChips = u.getChips(); // מוצאים כמה כסף נשאר לי
+                                    break; // עוצרים את הלולאה כי מצאנו אותי
                                 }
                             }
                         }
 
-                        // חישוב הרווח: מה שיש לי עכשיו פחות מה שהיה כשהחדר נפתח
+                        // חישוב הרווח (כמה יש לי עכשיו פחות עם כמה נכנסתי לחדר)
                         int totalProfit = currentChips - room.getStartingChips();
+                        String message = "";
 
-                        // הכנת הודעה אישית מותאמת
-                        String message;
-                        if (totalProfit > 0) {
+                        // בניית הודעה מותאמת אישית
+                        if(totalProfit > 0) {
                             message = "You won ₪" + totalProfit + " in this room! Great job!";
                         } else if (totalProfit < 0) {
                             message = "You lost ₪" + Math.abs(totalProfit) + ". Better luck next time!";
@@ -147,50 +151,50 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                             message = "You broke even! No profit, no loss.";
                         }
 
-                        // בניית חלון הדיאלוג
+                        // הקפצת חלון סיכום שלא ניתן לסגור אלא בלחיצה על הכפתור
                         new AlertDialog.Builder(OnlineActivity.this)
                                 .setTitle("Game Over")
                                 .setMessage(message)
                                 .setCancelable(false) // נועל את החלון
                                 .setPositiveButton("Back to lobby", (dialog, which) -> {
-                                    // הקוד הזה ירוץ *רק* אחרי שהשחקן ילחץ על הכפתור
+                                    // ברגע שלוחצים על הכפתור, חוזרים ללובי ומוחקים היסטוריה
                                     Intent intent = new Intent(OnlineActivity.this, LobbyActivity.class);
                                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                                     startActivity(intent);
                                     finish();
                                 })
-                                .show(); // מציג את החלון!
+                                .show();
 
-                        return; // עוצרים כאן כדי לא לנסות לצייר את הקלפים
+                        return; // עוצרים את המשך הפונקציה כדי לא לצייר את החדר
                     }
 
-                    // מוודאים שהחדר והשחקנים תקינים כדי למנוע קריסות (NullPointer)
-                    if (room != null && room.getPlayers() != null) {
+                    // אם המשחק ממשיך - מוודאים שהשחקנים תקינים לפני שמציירים
+                    if (room.getPlayers() != null) {
                         tvPotSize.setText("Pot: " + room.getPot());
 
-                        // אם החבילה עדיין ריקה, זה אומר שהסיבוב עוד לא באמת התחיל (הקלפים עוד לא חולקו)
+                        // בדיקה האם הסיבוב רק התחיל ועדיין אין קלפים (Deck ריק)
                         if (room.getDeck() == null || room.getDeck().isEmpty()) {
-                            // מנגנון הגנה של שרת-לקוח: רק השחקן במקום ה-0 (המארח) רשאי לערבב ולחלק קלפים!
-                            // זה מונע מ-4 שחקנים לערבב את החבילה באותו זמן ולדרוס אחד את השני.
+                            // הגנה קריטית: רק המארח (שחקן 0) מערבב ומחלק! שאר השחקנים מחכים להחלטה שלו.
                             if (room.getPlayers().size() >= 2 && myUid.equals(room.getPlayers().get(0).getUid())) {
-                                resetRoomForNextRound(room);
-                                roomRef.setValue(room); // מעלים את החבילה המעורבבת לענן
+                                resetRoomForNextRound(room); // יוצר חבילה חדשה ומחלק קלפים
+                                roomRef.setValue(room); // דוחף את החבילה המעורבבת לענן
                             }
-                            return; // מחכים שהמארח יסיים לערבב
+                            return; // כולם מחכים עד שהחבילה תרד מהענן
                         }
 
-                        // מעדכנים את הקנבס (ציור הקלפים והשולחן) לפי הנתונים שהגיעו מהענן
+                        // שולחים את המידע העדכני לקנבס כדי שיצייר את השולחן מחדש
                         pokerGameView.updateGame(room, myUid);
 
-                        // --- ניהול תורות: כיבוי והדלקה של הכפתורים שלי ---
+                        // --- ניהול תורות וכפתורי משחק ---
                         if (!room.getPlayers().isEmpty()) {
                             int currentTurnIndex = room.getTurnIndex();
 
+                            // בודקים של מי התור עכשיו
                             if (currentTurnIndex >= 0 && currentTurnIndex < room.getPlayers().size()) {
                                 User playerTurn = room.getPlayers().get(currentTurnIndex);
-                                boolean isMyTurn = playerTurn.getUid().equals(myUid); // האם התור עכשיו הוא ה-UID שלי?
+                                boolean isMyTurn = playerTurn.getUid().equals(myUid); // האם זה אני?
 
-                                // בדיקה האם כבר פרשתי או נגמר לי הכסף
+                                // בדיקה האם הסטטוס שלי הוא "מת" (פרשתי או שאין לי כסף)
                                 boolean amIFoldedOrOut = false;
                                 for (User p : room.getPlayers()) {
                                     if (p.getUid().equals(myUid) && (p.getStatus().equals("Folded") || p.getStatus().equals("Out"))) {
@@ -199,20 +203,20 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                                     }
                                 }
 
-                                // מדליק את הכפתורים רק אם זה התור שלי ואני עדיין במשחק
+                                // מדליק את כפתורי המשחק רק אם התור שלי ואני בחיים
                                 btnCheck.setEnabled(isMyTurn && !amIFoldedOrOut);
                                 btnFold.setEnabled(isMyTurn && !amIFoldedOrOut);
                                 btnRaise.setEnabled(isMyTurn && !amIFoldedOrOut);
 
-                                // שינוי הטקסט של כפתור Check/Call/All-in בהתאם למצב הקופה
+                                // שינוי חכם של טקסט הכפתור (Call לעומת Check לעומת All In)
                                 if (room.getCurrentBet() > 0) {
                                     if (room.getCurrentBet() >= playerTurn.getChips() + playerTurn.getCurrentBet()) {
-                                        btnCheck.setText("All In"); // אם אין לי מספיק כסף להשוות
+                                        btnCheck.setText("All In"); // חסר לי כסף להשוות, אז אני שם את הכל
                                     } else {
-                                        btnCheck.setText("Call"); // אם מישהו העלה, אני משווה
+                                        btnCheck.setText("Call"); // אני צריך להשוות הימור של מישהו אחר
                                     }
                                 } else {
-                                    btnCheck.setText("Check"); // חינם
+                                    btnCheck.setText("Check"); // חינם - אין הימור פעיל
                                 }
                             }
                         }
@@ -228,12 +232,12 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     // ====================================================================
-    // טיפול בלחיצות של השחקן. שימו לב: אנחנו מעדכנים את הפיירבייס ולא רק את המסך!
+    // טיפול בלחיצות כפתורים של השחקן (הכפתורים מעדכנים את Firebase)
     // ====================================================================
     @Override
     public void onClick(View view) {
 
-        // --- פרישה (Fold) ---
+        // --- כפתור פרישה (Fold) ---
         if (view.getId() == R.id.btnFold) {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
@@ -241,16 +245,16 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                player.setStatus("Folded"); // משנים סטטוס ומעבירים תור
+                                player.setStatus("Folded"); // הופך ללא-פעיל בסיבוב
                                 break;
                             }
                         }
-                        advanceGameRound(room);
+                        advanceGameRound(room); // מעביר את התור לשחקן הבא
                     }
                 }
             });
 
-            // --- השוואה או דפיקה על השולחן (Check / Call) ---
+            // --- כפתור בדיקה/השוואה (Check / Call) ---
         } else if (view.getId() == R.id.btnCheck) {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
@@ -258,29 +262,29 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                // חישוב כמה כסף חסר לי כדי להשוות את ההימור הגבוה ביותר בחדר
+                                // אם מישהו העלה, אנחנו מחשבים כמה חסר לי כדי להשוות
                                 if (room.getCurrentBet() > 0) {
                                     int amountToCall = room.getCurrentBet() - player.getCurrentBet();
                                     if (amountToCall > 0) {
+                                        // מונע כניסה למינוס (All-In אוטומטי אם חסר כסף)
                                         if (amountToCall >= player.getChips()) {
-                                            amountToCall = player.getChips(); // All-in אוטומטי אם חסר
+                                            amountToCall = player.getChips();
                                         }
                                         player.setChips(player.getChips() - amountToCall);
                                         room.setPot(room.getPot() + amountToCall);
                                         player.setCurrentBet(player.getCurrentBet() + amountToCall);
-                                        Toast.makeText(OnlineActivity.this, "Called " + amountToCall, Toast.LENGTH_SHORT).show();
                                     }
                                 }
-                                player.setStatus("Checked"); // מסמן שסיימתי להגיב
+                                player.setStatus("Checked"); // מסמן שאישרתי וסיימתי את התור שלי
                                 break;
                             }
                         }
-                        advanceGameRound(room); // מקדם את המשחק לשחקן הבא או לשלב הבא
+                        advanceGameRound(room); // מעביר תור
                     }
                 }
             });
 
-            // --- פתיחת חלון העלאה (Raise) ---
+            // --- כפתור פתיחת חלון העלאת הימור (Raise) ---
         } else if (view.getId() == R.id.btnRaise) {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
@@ -288,25 +292,26 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                     if (room != null && room.getPlayers() != null) {
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
-                                // מתאימים את הבר-גרירה (SeekBar) לכמות הצ'יפים שיש לשחקן
+                                // מסדר את ה"סליידר" שיימתח עד למקסימום הכסף שלי
                                 sbBetAmount.setMax(player.getChips() + player.getCurrentBet());
                                 sbBetAmount.setProgress(room.getCurrentBet());
                                 tvBetAmount.setText(String.valueOf(room.getCurrentBet()));
                                 break;
                             }
                         }
+                        // מחליף בין הכפתורים הרגילים לתפריט ההימורים
                         layoutActionButtons.setVisibility(View.GONE);
                         layoutBetting.setVisibility(View.VISIBLE);
                     }
                 }
             });
 
-            // --- ביטול העלאה (Cancel) ---
+            // --- ביטול תפריט העלאה וחזרה לכפתורים הרגילים ---
         } else if (view.getId() == R.id.btnCancelBet) {
             layoutActionButtons.setVisibility(View.VISIBLE);
             layoutBetting.setVisibility(View.GONE);
 
-            // --- אישור העלאת הימור (Confirm Bet) ---
+            // --- אישור ההעלאה (Confirm Bet) ---
         } else if (view.getId() == R.id.btnConfirmBet) {
             int finalBetAmount = sbBetAmount.getProgress();
             if (finalBetAmount <= 0) {
@@ -321,22 +326,23 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                         for (User player : room.getPlayers()) {
                             if (player.getUid().equals(myUid)) {
                                 int amountToAdd = finalBetAmount - player.getCurrentBet();
+                                // הגנה: לא ניתן להעלות פחות ממה שכבר קבעו בחדר
                                 if(finalBetAmount < room.getCurrentBet()) {
                                     Toast.makeText(OnlineActivity.this, "Not enough chips!", Toast.LENGTH_SHORT).show();
                                     return;
                                 }
                                 if (amountToAdd > player.getChips()) {
-                                    amountToAdd = player.getChips(); // מגן ממינוס
+                                    amountToAdd = player.getChips();
                                 }
 
-                                // מעדכן את המחיר הקבוצתי בחדר, ואת הצ'יפים האישיים
+                                // עדכון המחיר הקבוצתי והכסף בקופה
                                 room.setCurrentBet(finalBetAmount);
                                 room.setPot(room.getPot() + amountToAdd);
                                 player.setChips(player.getChips() - amountToAdd);
                                 player.setCurrentBet(finalBetAmount);
                                 player.setStatus("Checked");
                             } else if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
-                                // ברגע שהעליתי הימור, התור חוזר לכולם! הם חייבים להגיב (Waiting)
+                                // קריטי: אם העליתי את ההימור, התור חייב לחזור לכולם כדי שישוו!
                                 player.setStatus("Waiting");
                             }
                         }
@@ -347,7 +353,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                 }
             });
 
-            // --- כפתור הכל פנימה (All-In) מתפריט ההעלאה ---
+            // --- כפתור All-In מהיר ---
         } else if (view.getId() == R.id.btnAllIn) {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
@@ -359,14 +365,14 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                                 int totalBet = player.getCurrentBet() + allInAmount;
 
                                 if (totalBet > room.getCurrentBet()) {
-                                    room.setCurrentBet(totalBet); // מעלה את רף החדר ל-All in שלי
+                                    room.setCurrentBet(totalBet); // מקפיץ את רף החדר למקסימום שלי
                                 }
                                 room.setPot(room.getPot() + allInAmount);
                                 player.setChips(0);
                                 player.setCurrentBet(totalBet);
                                 player.setStatus("Checked");
                             } else if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
-                                player.setStatus("Waiting"); // פותח את התור מחדש לכולם
+                                player.setStatus("Waiting"); // מחזיר תור לכולם
                             }
                         }
                         layoutBetting.setVisibility(View.GONE);
@@ -378,12 +384,12 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  לוגיקת ניהול הסיבובים - קובעת מה קורה אחרי מהלך של שחקן
-    // ══════════════════════════════════════════════════════
+    // ====================================================================
+    // אלגוריתם קידום המשחק - מחליט אם להעביר תור או לחשוף קלפי קהילה
+    // ====================================================================
     private void advanceGameRound(GameRoom room) {
         boolean isRoundComplete = true;
-        // בודק אם כל השחקנים החיים בחדר נמצאים בסטטוס "Checked" (כלומר השוו להימור)
+        // בודק אם כל השחקנים החיים סיימו להשוות (כלומר הסטטוס שלהם הוא Checked)
         for (User player : room.getPlayers()) {
             if (!player.getStatus().equals("Checked") && !player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
                 isRoundComplete = false;
@@ -392,34 +398,35 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         }
 
         if (!isRoundComplete) {
-            // לא כולם סיימו - מעבירים את התור לשחקן הבא שעדיין חי
+            // עדיין חסרה תגובה ממישהו - מעבירים תור
             room.setTurnIndex(getNextActivePlayerIndex(room));
-            roomRef.setValue(room); // מעדכנים בענן
+            roomRef.setValue(room);
         } else {
-            // כולם סיימו להשוות! הזמן לפתוח קלפים ולעבור שלב
+            // כולם סיימו את סבב ההימורים! מתקדמים לשלב הבא.
             if (room.getGameState().equalsIgnoreCase("River")) {
-                handleShowdown(room); // אם סיימנו ריבר, הולכים לחשוף קלפים
+                handleShowdown(room); // אם סיימנו ריבר, חושפים קלפים
             } else {
+                // שולפים את החבילה ואת קלפי הקהילה
                 ArrayList<Card> deck = room.getDeck();
                 ArrayList<Card> communityCards = room.getCommunityCards();
                 if (communityCards == null) communityCards = new ArrayList<>();
 
-                // חלוקת קלפים לשולחן לפי השלב
+                // חלוקת קלפים לשולחן בהתאם לשלב הנוכחי
                 if (room.getGameState().equalsIgnoreCase("PreFlop")) {
-                    for (int i = 0; i < 3; i++) { // פלופ - 3 קלפים
+                    for (int i = 0; i < 3; i++) { // בפלופ שולפים 3 קלפים
                         if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0));
                     }
                     room.setGameState("Flop");
                 } else if (room.getGameState().equalsIgnoreCase("Flop")) {
-                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0)); // טרן
+                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0)); // בטרן שולפים 1
                     room.setGameState("Turn");
                 } else if (room.getGameState().equalsIgnoreCase("Turn")) {
-                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0)); // ריבר
+                    if (deck != null && !deck.isEmpty()) communityCards.add(deck.remove(0)); // בריבר שולפים 1
                     room.setGameState("River");
                 }
                 room.setCommunityCards(communityCards);
 
-                // בודקים אם נשאר רק שחקן אחד עם צ'יפים מול מישהו ב-All In, כדי להריץ קלפים מהר
+                // בודקים אם יש מצב של All-In שמצריך הריצה אוטומטית של שאר הקלפים
                 int activePlayers = 0;
                 int playersWithChipsCount = 0;
                 for (User player : room.getPlayers()) {
@@ -430,20 +437,20 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                 }
 
                 if (activePlayers >= 2 && playersWithChipsCount <= 1) {
+                    // מישהו באול-אין מול שחקן בלי כסף: מריצים את המשחק אוטומטית
                     roomRef.setValue(room);
-                    // הריצה המהירה של ה-All in
                     new Handler().postDelayed(() -> {
                         roomRef.get().addOnCompleteListener(task -> {
                             if (task.isSuccessful() && task.getResult().exists()) {
                                 GameRoom currentRoom = task.getResult().getValue(GameRoom.class);
                                 if (currentRoom != null) {
-                                    advanceGameRound(currentRoom);
+                                    advanceGameRound(currentRoom); // קריאה רקורסיבית
                                 }
                             }
                         });
-                    }, 1500);
+                    }, 1500); // משהים שניה וחצי כדי שיוכלו לראות את הקלפים
                 } else {
-                    // איפוס ההימורים לקראת הסיבוב הבא
+                    // סיבוב רגיל - מאפסים את הסטטוסים לקראת סבב הימורים חדש
                     for (User player : room.getPlayers()) {
                         if (!player.getStatus().equals("Folded") && !player.getStatus().equals("Out")) {
                             player.setStatus("Waiting");
@@ -451,20 +458,21 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                         player.setCurrentBet(0);
                     }
                     room.setCurrentBet(0);
+                    // התור חוזר לשחקן הראשון הפעיל אחרי הדילר
                     room.setTurnIndex(getFirstActivePlayerIndex(room));
-                    roomRef.setValue(room); // מעדכנים בענן את הפתיחה החדשה
+                    roomRef.setValue(room); // מעדכנים את החדר בשרת
                 }
             }
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  SHOWDOWN — חישוב מנצחים והצגה על הקנבס
-    // ══════════════════════════════════════════════════════
+    // ====================================================================
+    // Showdown - חשיפת קלפים, הכרזת מנצחים וחלוקת הקופה
+    // ====================================================================
     private void handleShowdown(GameRoom room) {
         if (room.getPlayers() == null) return;
 
-        // 1. שולחים את הידיים של כולם להערכה (HandEvaluator) ומקבלים ניקוד
+        // 1. שולחים את הידיים של כל השחקנים למעריך (HandEvaluator) כדי לקבל ציון
         HashMap<String, Integer> playerScores = new HashMap<>();
         for (User u : room.getPlayers()) {
             if (!u.getStatus().equals("Folded")) {
@@ -473,15 +481,15 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                 if (room.getCommunityCards() != null) sevenCards.addAll(room.getCommunityCards());
                 playerScores.put(u.getUid(), HandEvaluator.evaluateHand(sevenCards));
             } else {
-                playerScores.put(u.getUid(), 0);
+                playerScores.put(u.getUid(), 0); // מי שפרש מקבל אפס מאופס
             }
         }
 
-        // 2. מסדרים את השחקנים לפי כמה שהם הימרו (לצורך טיפול נכון במי שעשה All-in חלקי)
+        // 2. מסדרים את השחקנים לפי סכום ההימור שלהם (קריטי כדי לחשב Side Pots כשאנשים עושים All in בסכומים שונים)
         ArrayList<User> sortedPlayers = new ArrayList<>(room.getPlayers());
         Collections.sort(sortedPlayers, (u1, u2) -> u1.getCurrentBet() - u2.getCurrentBet());
 
-        // מוצאים את המנצח הכללי (או המנצחים במקרה של שוויון/Split)
+        // 3. מציאת הציון הגבוה ביותר והשחקנים שהשיגו אותו
         ArrayList<User> winners = new ArrayList<>();
         int bestScore = 0;
         for (User u : room.getPlayers()) {
@@ -496,7 +504,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
             }
         }
 
-        // 3. חלוקת הקופה בקומות (Side Pots) - מטפל יפה במצבי All-In קטנים
+        // 4. אלגוריתם חלוקת הקופה בקומות (כדי ששחקן שהימר קצת לא ייקח את כל הקופה הענקית)
         int previousInvested = 0;
         for (int i = 0; i < sortedPlayers.size(); i++) {
             User current = sortedPlayers.get(i);
@@ -524,24 +532,20 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
                     for (User p : eligiblePlayers) {
                         if (playerScores.get(p.getUid()) == layerBest) layerWinners.add(p);
                     }
-                    // מפצלים את הכסף של ה"קומה" הזו לכל הזוכים
-                    int splitAmount = layerPot / layerWinners.size();
+                    int splitAmount = layerPot / layerWinners.size(); // מחלקים את השכבה שווה בשווה בין הזוכים
                     for (User w : layerWinners) w.setChips(w.getChips() + splitAmount);
                 }
                 previousInvested = currentInvested;
             }
         }
 
-        // 🌟 סנכרון הבנק הראשי מול Firebase (קריטי!) 🌟
-        // רק המארח מבצע את החישוב הזה, כדי ש-4 מכשירים לא יוסיפו את הניצחון 4 פעמים בטעות.
+        // 🌟 סנכרון הבנק הראשי מול Firebase (קריטי לרווחים ארוכי טווח) 🌟
+        // רק המארח (שחקן 0) מחשב את זה כדי שלא כל המכשירים יוסיפו כסף בו זמנית
         if (room.getPlayers().size() > 0 && myUid.equals(room.getPlayers().get(0).getUid())) {
             DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("Users");
 
             for (User u : room.getPlayers()) {
-                // מבררים כמה כסף הוא הרוויח או הפסיד לעומת תחילת הסיבוב
                 int roundProfitOrLoss = u.getChips() - u.getChipsBeforeRound();
-
-                // מעדכנים את היתרה האמיתית שלו בבנק הראשי של האפליקציה (ששייכת לו גם בלובי)
                 usersRef.child(u.getUid()).child("chips").get().addOnSuccessListener(snapshot -> {
                     if (snapshot.exists()) {
                         int realBank = snapshot.getValue(Integer.class);
@@ -551,7 +555,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
             }
         }
 
-        // בניית הודעת הניצחון למי שרואה את המסך
+        // 5. בניית הודעת הניצחון שתוצג על המסך לכולם
         StringBuilder msg = new StringBuilder();
         if (winners.size() == 1) {
             msg.append("🏆 ").append(winners.get(0).getNickname()).append(" Wins! 🏆");
@@ -562,33 +566,32 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
 
         room.setWinnerName(msg.toString());
         room.setGameState("Showdown");
-        roomRef.setValue(room); // עדכון לענן כדי להציג לכולם את מסך הניצחון
+        roomRef.setValue(room); // השרת מתעדכן שהגענו לשואודאון - והמסכים יציירו את חלון הניצחון
 
-        // משהים ל-4 שניות לתצוגה, ואז המארח מנקה את החדר לסיבוב הבא
+        // משהים ל-4 שניות לתצוגה, ואז בודקים אם יש צורך בסיבוב נוסף או שהמשחק נגמר
         new Handler().postDelayed(() -> {
             roomRef.get().addOnCompleteListener(task -> {
                 if (task.isSuccessful() && task.getResult().exists()) {
                     GameRoom currentRoomState = task.getResult().getValue(GameRoom.class);
                     // מוודאים שעוד לא התחילו משחק בלעדינו
                     if (currentRoomState != null && "Showdown".equals(currentRoomState.getGameState())) {
-                        int alivePlayers =0;
-                        if(currentRoomState.getPlayers()!=null)
-                        {
-                            for(User p : currentRoomState.getPlayers())
-                            {
-                                if(p.getChips() > 0) alivePlayers++;
-
+                        int alivePlayers = 0;
+                        if(currentRoomState.getPlayers() != null) {
+                            for(User p : currentRoomState.getPlayers()) {
+                                if(p.getChips() > 0) alivePlayers++; // סופרים מי לא פשט רגל
                             }
                         }
+
                         if(alivePlayers > 1) {
+                            // יש לפחות 2 שחקנים חיים - מאפסים את החדר לסיבוב הבא
                             resetRoomForNextRound(currentRoomState);
                             currentRoomState.setWinnerName("");
-                            roomRef.setValue(currentRoomState); // שולחים לענן חדר נקי ומוכן לפלופ הבא
-                        }
-                        else{
+                            roomRef.setValue(currentRoomState);
+                        } else {
+                            // נשאר שחקן אחד בלבד עם כסף (או שכולם מתו). המשחק נגמר!
                             currentRoomState.setGameState("GameOver");
                             currentRoomState.setGameActive(false);
-                            roomRef.setValue(currentRoomState);
+                            roomRef.setValue(currentRoomState); // שולחים סטטוס סיום לשרת
                         }
                     }
                 }
@@ -596,60 +599,61 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         }, 4000);
     }
 
-    // ══════════════════════════════════════════════════════
-    //  איפוס החדר לסיבוב הבא - רק המארח מריץ את זה!
-    // ══════════════════════════════════════════════════════
+    // ====================================================================
+    // איפוס החדר לסיבוב הבא - הפעולה הזו מבוצעת אך ורק על ידי המארח!
+    // ====================================================================
     private void resetRoomForNextRound(GameRoom room) {
         room.setGameState("PreFlop");
-        if (room.getCommunityCards() != null) room.getCommunityCards().clear();
+        if (room.getCommunityCards() != null) room.getCommunityCards().clear(); // מנקים שולחן
 
         for (User player : room.getPlayers()) {
-            player.setChipsBeforeRound(player.getChips()); // שמירת נקודת התחלה לחישוב רווח עתידי
+            player.setChipsBeforeRound(player.getChips()); // שומרים נקודת ייחוס לחישוב הרווחים בסוף הסיבוב
             player.setCurrentBet(0);
-            player.setHand(new ArrayList<>()); // ריקון הקלפים הישנים
+            player.setHand(new ArrayList<>()); // אוספים קלפים מהיד
 
             if (player.getChips() <= 0) {
-                player.setStatus("Out"); // משתמש שפשט רגל מודח
+                player.setStatus("Out"); // מי שנגמר לו הכסף מודח מהסיבוב הזה
             } else {
-                player.setStatus("Waiting"); // מוכן לסיבוב
+                player.setStatus("Waiting"); // מי שחי חוזר למצב המתנה
             }
         }
 
-        // חישוב עמדות: דילר, סמול בליינד וביג בליינד
+        // --- חישוב עמדות כפתור (Dealer, SB, BB) ---
         room.setDealerIndex((room.getDealerIndex() + 1) % room.getPlayers().size());
         int smallBlindIndex, bigBlindIndex, dealerTurnIndex;
 
-        if(room.getPlayers().size() == 2) { // חוקי Heads up (2 שחקנים)
+        // טיפול במקרה של 2 שחקנים (Heads Up)
+        if(room.getPlayers().size() == 2) {
             smallBlindIndex = room.getDealerIndex();
             bigBlindIndex = (room.getDealerIndex() + 1) % room.getPlayers().size();
-            dealerTurnIndex = smallBlindIndex;
+            dealerTurnIndex = smallBlindIndex; // הדילר הוא גם הסמול בליינד והוא מתחיל ראשון לפני הפלופ
         } else { // 3-4 שחקנים
             smallBlindIndex = (room.getDealerIndex() + 1) % room.getPlayers().size();
             bigBlindIndex = (room.getDealerIndex() + 2) % room.getPlayers().size();
-            dealerTurnIndex = (bigBlindIndex + 1) % room.getPlayers().size();
+            dealerTurnIndex = (bigBlindIndex + 1) % room.getPlayers().size(); // שחקן "Under the gun" מתחיל
         }
 
         int sbAmount = 100;
         int bbAmount = 200;
 
-        // לקיחת כסף בכוח לשחקן הסמול בליינד
+        // גביית הסמול בליינד
         User sbPlayer = room.getPlayers().get(smallBlindIndex);
-        int actualSb = Math.min(sbAmount, sbPlayer.getChips());
+        int actualSb = Math.min(sbAmount, sbPlayer.getChips()); // מגן ממינוס במקרה של שחקן עני
         sbPlayer.setChips(sbPlayer.getChips() - actualSb);
         sbPlayer.setCurrentBet(actualSb);
 
-        // לקיחת כסף בכוח לשחקן הביג בליינד
+        // גביית הביג בליינד
         User bbPlayer = room.getPlayers().get(bigBlindIndex);
         int actualBb = Math.min(bbAmount, bbPlayer.getChips());
         bbPlayer.setChips(bbPlayer.getChips() - actualBb);
         bbPlayer.setCurrentBet(actualBb);
 
-        // עדכון הקופה והעברת התור לשחקן שאחרי הביג בליינד
+        // עדכון הקופה והגדרת מי שתורו לשחק עכשיו
         room.setPot(actualSb + actualBb);
         room.setCurrentBet(actualBb);
         room.setTurnIndex(dealerTurnIndex);
 
-        // יצירת חבילה חדשה, ערבוב וחלוקת 2 קלפים לכל שחקן חי
+        // יצירת חבילת קלפים חדשה לגמרי, ערבוב וחלוקה
         Deck newDeck = new Deck();
         newDeck.shuffle();
         ArrayList<Card> deckList = new ArrayList<>();
@@ -657,6 +661,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         while ((c = newDeck.drawCard()) != null) deckList.add(c);
         room.setDeck(deckList);
 
+        // חלוקת 2 קלפי כיס לכל שחקן חי (מורידים מהחבילה הכללית ומעבירים אליהם)
         for (User player : room.getPlayers()) {
             if(!player.getStatus().equals("Out")) {
                 ArrayList<Card> newHand = new ArrayList<>();
@@ -667,11 +672,11 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  פונקציות עזר - לוגיקת מעבר תורות
-    // ══════════════════════════════════════════════════════
+    // ====================================================================
+    // פונקציות עזר - מציאת שחקנים וניהול הבר-החלקתי (SeekBar)
+    // ====================================================================
 
-    // מוצא את המיקום ברשימה של השחקן הבא שעדיין משחק (מדלג על מי שפרש או מת)
+    // מוצא את המיקום ברשימה של השחקן הבא שעדיין חי ולא קיפל קלפים
     private int getNextActivePlayerIndex(GameRoom room) {
         int nextIndex = room.getTurnIndex() + 1;
         if (nextIndex >= room.getPlayers().size()) nextIndex = 0;
@@ -682,7 +687,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         return nextIndex;
     }
 
-    // מוצא את השחקן הפעיל הראשון בתחילת סיבוב פתיחת קלפים חדש
+    // מוצא את השחקן הפעיל הראשון בתחילת כל סיבוב (אחרי שהקלפים נפתחו)
     private int getFirstActivePlayerIndex(GameRoom room) {
         int firstPlayer = 0;
         while (firstPlayer < room.getPlayers().size() && (room.getPlayers().get(firstPlayer).getStatus().equals("Folded") || room.getPlayers().get(firstPlayer).getStatus().equals("Out"))) {
@@ -691,7 +696,7 @@ public class OnlineActivity extends AppCompatActivity implements View.OnClickLis
         return firstPlayer;
     }
 
-    // עדכון תצוגת הכסף מעל הסליידר של הרייז (Raise)
+    // מעדכן את תצוגת הטקסט מעל בר-הגרירה כשמעלים הימור
     @Override
     public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
         sbBetAmount.setProgress(i);

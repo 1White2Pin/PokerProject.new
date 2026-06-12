@@ -27,6 +27,7 @@ import Models.Card;
 import Models.GameRoom;
 import Models.User;
 
+// קלאס התצוגה הראשי של השולחן - אחראי לצייר את כל רכיבי המשחק באנימציות
 public class PokerGameView extends View {
 
     private GameRoom currentRoom;
@@ -39,6 +40,7 @@ public class PokerGameView extends View {
     private Paint avatarBgPaint, avatarBorderPaint, avatarTextPaint;
     private Paint potBgPaint, potTextPaint, potLabelPaint, potBorderPaint;
     private Paint overlayPaint, winnerPanelPaint, winnerTitlePaint, winnerNamePaint, winnerSubPaint;
+    private Paint betBgPaint, betTextPaint;
 
     // --- מידות וגבולות ---
     private int screenW, screenH;
@@ -55,7 +57,12 @@ public class PokerGameView extends View {
     private float flipScale = 1f, dealProgress = 1f;
     private int previousCommunityCount = 0, animatingStartIndex = 0;
 
-    // --- צבעים ---
+    // 🌟 המשתנים החדשים לצורך האנימציה של קלפי היריבים 🌟
+    private boolean isOpponentFlipping = false;   // האם היריבים כרגע באמצע סיבוב קלפים
+    private float opponentFlipScale = 1f;         // ערך הגלילה של קלפי היריבים (מ-1 ל-1-)
+    private String previousGameState = "";         // שומר את הסטטוס הקודם של החדר כדי לזהות כניסה ל-Showdown
+
+    // --- צבעים עיקריים לשולחן ---
     private static final String COLOR_FELT_DARK   = "#0D3B1F";
     private static final String COLOR_FELT_LIGHT  = "#1E7A3D";
     private static final String COLOR_GOLD        = "#D4A843";
@@ -71,7 +78,7 @@ public class PokerGameView extends View {
         init();
     }
 
-    // 1. אתחול ראשוני של כל המכחולים (קורה פעם אחת בלבד!)
+    // אתחול והגדרת כל המכחולים של המשחק (רץ פעם אחת בלבד בטעינה)
     public void init() {
         cardCache = new HashMap<>();
 
@@ -96,7 +103,7 @@ public class PokerGameView extends View {
         shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shadowPaint.setColor(Color.parseColor("#55000000"));
 
-        // תוויות ואווטרים
+        // תוויות ואווטרים של שחקנים
         labelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         labelBgPaint.setColor(Color.parseColor("#CC0A0A0A"));
         labelBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -128,7 +135,7 @@ public class PokerGameView extends View {
         avatarTextPaint.setTextAlign(Paint.Align.CENTER);
         avatarTextPaint.setFakeBoldText(true);
 
-        // קופה (Pot)
+        // קופה מרכזית (Pot)
         potBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         potBgPaint.setColor(Color.parseColor(COLOR_CHIP_BG));
         potBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -143,7 +150,18 @@ public class PokerGameView extends View {
         potLabelPaint.setTextAlign(Paint.Align.CENTER);
         potLabelPaint.setTextSize(20f);
 
-        // מסך ניצחון
+        // בועות הימור על השולחן (Bet Chips)
+        betBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        betBgPaint.setColor(Color.parseColor(COLOR_CHIP_BG));
+        betBgPaint.setStyle(Paint.Style.FILL);
+
+        betTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        betTextPaint.setColor(Color.parseColor("#F0C96A"));
+        betTextPaint.setTextAlign(Paint.Align.CENTER);
+        betTextPaint.setTextSize(22f);
+        betTextPaint.setFakeBoldText(true);
+
+        // מסך ומודל ניצחון
         overlayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         overlayPaint.setColor(Color.parseColor("#CC000000"));
         winnerPanelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -161,7 +179,7 @@ public class PokerGameView extends View {
         winnerSubPaint.setTextAlign(Paint.Align.CENTER);
     }
 
-    // 2. חישוב מידות (קורה כשהמסך מסתובב או נטען לראשונה)
+    // חישוב מידות דינמיות בהתאם לגודל המסך של המכשיר
     @Override
     public void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -175,7 +193,7 @@ public class PokerGameView extends View {
         tableRect = new RectF(marginW, marginH, screenW - marginW, screenH - marginH);
         tableInnerRect = new RectF(tableRect.left + 18f, tableRect.top + 18f, tableRect.right - 18f, tableRect.bottom - 18f);
 
-        // הגדרת גרדיאנטים (מעברי צבע) לשולחן
+        // יצירת מעברי הצבע (Gradients) לשולחן ולעץ
         tablePaint.setShader(new RadialGradient(centerX, centerY, screenW * 0.65f,
                 new int[]{Color.parseColor(COLOR_FELT_LIGHT), Color.parseColor(COLOR_FELT_DARK)},
                 new float[]{0f, 1f}, Shader.TileMode.CLAMP));
@@ -184,7 +202,6 @@ public class PokerGameView extends View {
                 new int[]{Color.parseColor("#8B5A2B"), Color.parseColor("#3B2005")},
                 new float[]{0f, 1f}, Shader.TileMode.CLAMP));
 
-        // טעינת גב הקלף
         int backResId = getResources().getIdentifier("card_back", "drawable", getContext().getPackageName());
         if (backResId != 0) {
             Bitmap originalBack = BitmapFactory.decodeResource(getResources(), backResId);
@@ -193,11 +210,11 @@ public class PokerGameView extends View {
         }
     }
 
-    // 3. הציור בפועל - מסודר ונקי!
+    // הפעלת פונקציות הציור המרכזיות לפי הסדר
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
-        canvas.drawColor(Color.parseColor("#0A0A0A")); // רקע שחור
+        canvas.drawColor(Color.parseColor("#0A0A0A"));
 
         drawTable(canvas);
 
@@ -209,15 +226,13 @@ public class PokerGameView extends View {
         drawShowdown(canvas);
     }
 
-    // --- פונקציות הציור המופרדות ---
-
+    // מצייר את אליפסות השולחן וקווי המרקם של הלבד
     private void drawTable(Canvas canvas) {
         if (tableRect == null) return;
         canvas.drawOval(tableRect, borderPaint);
         canvas.drawOval(tableInnerRect, tablePaint);
         canvas.drawOval(tableInnerRect, borderInnerPaint);
 
-        // ציור קווי הלבד
         canvas.save();
         Path ovalPath = new Path();
         ovalPath.addOval(tableInnerRect, Path.Direction.CW);
@@ -226,6 +241,7 @@ public class PokerGameView extends View {
         canvas.restore();
     }
 
+    // מצייר את קלפי הקהילה במרכז עם האנימציה שלהם
     private void drawCommunityCards(Canvas canvas) {
         if (currentRoom.getCommunityCards() == null || currentRoom.getCommunityCards().isEmpty()) return;
 
@@ -250,6 +266,7 @@ public class PokerGameView extends View {
         }
     }
 
+    // מצייר את פאנל הקופה הכללית
     private void drawPot(Canvas canvas) {
         if (currentRoom.getPot() <= 0) return;
         float cy = centerY + cardH / 2f - 20;
@@ -261,10 +278,29 @@ public class PokerGameView extends View {
         canvas.drawText("₪" + currentRoom.getPot(), centerX, cy + 44f, potTextPaint);
     }
 
+    // מצייר בועת צ'יפים של הימור נוכחי של שחקן ספציפי
+    private void drawBetBubble(Canvas canvas, int amount, float cx, float cy) {
+        if (amount <= 0) return;
+
+        String text = "₪" + amount;
+        float textWidth = betTextPaint.measureText(text);
+        float bgWidth = textWidth + 36f;
+        float bgHeight = 40f;
+
+        RectF bgRect = new RectF(cx - bgWidth/2, cy - bgHeight/2, cx + bgWidth/2, cy + bgHeight/2);
+
+        canvas.drawRoundRect(bgRect, 20f, 20f, betBgPaint);
+        canvas.drawRoundRect(bgRect, 20f, 20f, potBorderPaint);
+        canvas.drawText(text, cx, cy + 8f, betTextPaint);
+    }
+
+    // הפונקציה המרכזית שמפזרת את השחקנים והקלפים שלהם סביב השולחן
     private void drawAllPlayers(Canvas canvas) {
         float deckX = centerX - cardW / 2f;
         float deckY = centerY - cardH / 2f;
         int opponentIndex = 0;
+
+        boolean isShowdown = "Showdown".equalsIgnoreCase(currentRoom.getGameState());
 
         for (User player : currentRoom.getPlayers()) {
             boolean isMe = player.getUid().equals(uid);
@@ -272,7 +308,7 @@ public class PokerGameView extends View {
             cardPaint.setAlpha(isFolded ? 90 : 255);
 
             if (isMe) {
-                // ציור הקלפים שלי
+                // --- ציור קלפי המשתמש המקומי (בתחתית המסך) ---
                 int handSize = (player.getHand() != null) ? player.getHand().size() : 0;
                 float overlap = cardW * 0.45f;
                 float startX = (screenW - (cardW + (handSize - 1) * overlap)) / 2f;
@@ -286,19 +322,42 @@ public class PokerGameView extends View {
                     if (bmp != null) canvas.drawBitmap(bmp, curX, curY, cardPaint);
                     startX += overlap;
                 }
+
                 drawPlayerLabel(canvas, player, centerX, targetY - 10, true);
+
+                // ציור בועת הימור מעל הקלפים שלי (רק אם ההימור פעיל וזה לא שלב חשיפת קלפים)
+                if (player.getCurrentBet() > 0 && !isShowdown) {
+                    drawBetBubble(canvas, player.getCurrentBet(), centerX, targetY - 40f);
+                }
+
             } else {
-                // ציור הקלפים של היריבים (קצוות השולחן)
+                // --- ציור קלפי היריבים (שמאל, למעלה, ימין) ---
                 int handSize = (player.getHand() != null) ? player.getHand().size() : 0;
                 float overlap = smallCardW * 0.4f;
                 float totalW = smallCardW + (handSize - 1) * overlap;
                 float targetX = 0, targetY = 0;
+                float betCX = 0, betCY = 0;
 
-                // מיקום היריב לפי האינדקס שלו
+                // חישוב מיקום חכם של היריב ושל הצ'יפים שלו לכיוון מרכז השולחן
                 switch (opponentIndex) {
-                    case 0: targetX = screenW * 0.07f; targetY = centerY - smallCardH * 0.8f; break; // שמאל
-                    case 1: targetX = centerX - totalW / 2f; targetY = screenH * 0.10f; break;       // למעלה
-                    case 2: targetX = screenW * 0.93f - totalW; targetY = centerY - smallCardH * 0.8f; break; // ימין
+                    case 0: // שחקן שמאלי
+                        targetX = screenW * 0.07f;
+                        targetY = centerY - smallCardH * 0.8f;
+                        betCX = targetX + totalW + 50f;
+                        betCY = targetY + smallCardH / 2f;
+                        break;
+                    case 1: // שחקן עליון
+                        targetX = centerX - totalW / 2f;
+                        targetY = screenH * 0.10f;
+                        betCX = centerX;
+                        betCY = targetY + smallCardH + 80f;
+                        break;
+                    case 2: // שחקן ימני
+                        targetX = screenW * 0.93f - totalW;
+                        targetY = centerY - smallCardH * 0.8f;
+                        betCX = targetX - 50f;
+                        betCY = targetY + smallCardH / 2f;
+                        break;
                 }
 
                 float tempX = targetX;
@@ -306,16 +365,42 @@ public class PokerGameView extends View {
                     float curX = deckX + (tempX - deckX) * dealProgress;
                     float curY = deckY + (targetY - deckY) * dealProgress;
                     drawCardShadow(canvas, curX, curY, smallCardW, smallCardH);
-                    if (smallBackBitmap != null) canvas.drawBitmap(smallBackBitmap, curX, curY, cardPaint);
+
+                    // 🌟 ניהול פתיחת קלפים ואנימציה ב-Showdown 🌟
+                    if (isShowdown && !isFolded) {
+                        Bitmap bmp = getCachedImage(player.getHand().get(k).getImageResourceName(), smallCardW, smallCardH);
+
+                        if (isOpponentFlipping) {
+                            // המצב החדש: אם האנימציה רצה, נכווץ את הקלף ונשנה אותו לפי ערך האנימטור
+                            canvas.save();
+                            canvas.scale(Math.abs(opponentFlipScale), 1f, curX + smallCardW / 2f, curY + smallCardH / 2f);
+                            // אם הציון חיובי מראים את הגב, אם שלילי מראים את הפנים
+                            canvas.drawBitmap((opponentFlipScale > 0) ? smallBackBitmap : bmp, curX, curY, cardPaint);
+                            canvas.restore();
+                        } else {
+                            // האנימציה הסתיימה - מציגים את קלף הפנים קבוע
+                            if (bmp != null) canvas.drawBitmap(bmp, curX, curY, cardPaint);
+                        }
+                    } else {
+                        // מצב רגיל (PreFlop, Flop וכו') - קלפי היריבים תמיד סגורים
+                        if (smallBackBitmap != null) canvas.drawBitmap(smallBackBitmap, curX, curY, cardPaint);
+                    }
                     tempX += overlap;
                 }
+
                 drawPlayerLabel(canvas, player, targetX + totalW / 2f, targetY + smallCardH + 8, false);
+
+                if (player.getCurrentBet() > 0 && !isShowdown) {
+                    drawBetBubble(canvas, player.getCurrentBet(), betCX, betCY);
+                }
+
                 opponentIndex++;
             }
         }
         cardPaint.setAlpha(255);
     }
 
+    // מצייר את פאנל השם, היתרה והאווטר של השחקן
     private void drawPlayerLabel(Canvas canvas, User user, float cx, float topY, boolean isMe) {
         String name = (user.getNickname() != null) ? user.getNickname() : "Player";
         if (name.length() > 10) name = name.substring(0, 9) + "…";
@@ -325,7 +410,6 @@ public class PokerGameView extends View {
         canvas.drawRoundRect(panelRect, 30f, 30f, labelBgPaint);
         canvas.drawRoundRect(panelRect, 30f, 30f, isMe ? highlightBorderPaint : labelBorderPaint);
 
-        // ציור אווטר עגול
         float avatarCX = panelRect.left + 30f;
         avatarBgPaint.setColor(isMe ? Color.parseColor("#2E5C2E") : Color.parseColor("#1A3A4A"));
         avatarBorderPaint.setColor(isMe ? Color.parseColor(COLOR_GOLD) : Color.parseColor(folded ? "#555555" : "#4488CC"));
@@ -335,7 +419,6 @@ public class PokerGameView extends View {
         canvas.drawCircle(avatarCX, panelRect.centerY(), 22f, avatarBorderPaint);
         canvas.drawText(name.substring(0,1).toUpperCase(), avatarCX, panelRect.centerY() + 8f, avatarTextPaint);
 
-        // טקסט
         namePaint.setAlpha(folded ? 140 : 255);
         canvas.drawText(name, cx + 10f, topY + 26f, namePaint);
         canvas.drawText("₪" + user.getChips(), cx + 10f, topY + 46f, chipsPaint);
@@ -346,6 +429,7 @@ public class PokerGameView extends View {
         }
     }
 
+    // מצייר את פאנל מסך הסיום החצי-שקוף עם רווח והפסד אישיים
     private void drawShowdown(Canvas canvas) {
         if (!"Showdown".equalsIgnoreCase(currentRoom.getGameState()) || currentRoom.getWinnerName() == null) return;
 
@@ -358,7 +442,34 @@ public class PokerGameView extends View {
 
         canvas.drawText("🏆 WINNER 🏆", centerX, centerY - 65f, winnerTitlePaint);
         canvas.drawText(currentRoom.getWinnerName(), centerX, centerY + 25f, winnerNamePaint);
-        canvas.drawText("Congratulations!", centerX, centerY + 80f, winnerSubPaint);
+
+        User me = null;
+        if (currentRoom.getPlayers() != null) {
+            for (User u : currentRoom.getPlayers()) {
+                if (u.getUid().equals(this.uid)) {
+                    me = u;
+                    break;
+                }
+            }
+        }
+
+        String profitMessage = "Round Over";
+        winnerSubPaint.setColor(Color.parseColor("#AAFFFFFF"));
+
+        if (me != null) {
+            int profit = me.getChips() - me.getChipsBeforeRound();
+            if (profit > 0) {
+                profitMessage = "You won ₪" + profit + "!";
+                winnerSubPaint.setColor(Color.parseColor("#4CAF50"));
+            } else if (profit < 0) {
+                profitMessage = "You lost ₪" + Math.abs(profit) + ".";
+                winnerSubPaint.setColor(Color.parseColor("#F44336"));
+            } else {
+                profitMessage = "You broke even.";
+            }
+        }
+
+        canvas.drawText(profitMessage, centerX, centerY + 85f, winnerSubPaint);
     }
 
     private void drawCardShadow(Canvas canvas, float x, float y, int w, int h) {
@@ -377,23 +488,34 @@ public class PokerGameView extends View {
         return null;
     }
 
-    // --- אנימציות --- (נשארו כמעט אותו דבר כי הן עבדו מצוין)
+    // ====================================================================
+    // מערכת ניהול האנימציות והרענון של השרת
+    // ====================================================================
     public void updateGame(GameRoom room, String uid) {
         this.currentRoom = room; this.uid = uid;
         int commCount = (room.getCommunityCards() != null) ? room.getCommunityCards().size() : 0;
 
+        // אנימציית חלוקת קלפים התחלתית
         if (room.getGameState().equalsIgnoreCase("PreFlop") && !isNewRound) {
             isNewRound = true; startDealAnimation();
         } else if (!room.getGameState().equalsIgnoreCase("PreFlop")) {
             isNewRound = false;
         }
 
+        // 🌟 התוספת החדשה: זיהוי כניסה ל-Showdown והפעלת אנימציית הסיבוב 🌟
+        if (room.getGameState().equalsIgnoreCase("Showdown") && !previousGameState.equalsIgnoreCase("Showdown")) {
+            startOpponentFlipAnimation();
+        }
+
+        // אנימציית היפוך קלפי קהילה (Flop, Turn, River)
         if (commCount > previousCommunityCount) {
             animatingStartIndex = previousCommunityCount; startFlipAnimation();
         } else {
             invalidate();
         }
+
         previousCommunityCount = commCount;
+        previousGameState = room.getGameState(); // שומרים את המצב הנוכחי שיהפוך למצב הקודם בריצה הבאה
     }
 
     private void startDealAnimation() {
@@ -417,6 +539,32 @@ public class PokerGameView extends View {
         anim.addListener(new AnimatorListenerAdapter() {
             @Override public void onAnimationEnd(Animator a) { isFlipping = false; flipScale = -1f; invalidate(); }
         });
+        anim.start();
+    }
+
+    // 🌟 הפונקציה החדשה שמסובבת את קלפי היריבים ב-Showdown 🌟
+    private void startOpponentFlipAnimation() {
+        if (isOpponentFlipping) return;
+        isOpponentFlipping = true;
+        opponentFlipScale = 1f; // מתחיל מקלף סגור מלא
+
+        ValueAnimator anim = ValueAnimator.ofFloat(1f, -1f); // רץ מ-1 ל-1- כדי לייצר אפקט סיבוב
+        anim.setDuration(600); // 600 מילישניות של סיבוב חלק
+
+        anim.addUpdateListener(animation -> {
+            opponentFlipScale = (float) animation.getAnimatedValue();
+            invalidate(); // מצייר מחדש את המסך בכל פריים של האנימציה
+        });
+
+        anim.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                isOpponentFlipping = false;
+                opponentFlipScale = -1f; // מסתיים בקלף פתוח מלא
+                invalidate();
+            }
+        });
+
         anim.start();
     }
 }

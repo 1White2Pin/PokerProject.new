@@ -15,7 +15,6 @@ import java.util.ArrayList;
 
 import Models.GameRoom;
 
-// המחלקה יורשת מהמתאם המובנה של אנדרואיד לרשימות נגללות (RecyclerView)
 public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
 
     // רשימת הנתונים שלנו: כל החדרים הפתוחים שנמשכו מפיירבייס
